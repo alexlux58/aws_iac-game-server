@@ -57,9 +57,9 @@ variable "cloudflare_zone_name" {
 }
 
 variable "cloudflare_subdomain" {
-  description = "Subdomain for the DNS record (e.g., 'quake' creates quake.alexflux.com)"
+  description = "Subdomain for the DNS record (e.g., 'games' creates games.alexflux.com)"
   type        = string
-  default     = "quake"
+  default     = "games"
 }
 
 variable "cloudflare_ttl" {

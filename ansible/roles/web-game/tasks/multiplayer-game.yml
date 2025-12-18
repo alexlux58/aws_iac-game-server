@@ -1,0 +1,58 @@
+---
+# Deploy PvP - Multiplayer browser arena shooter
+# PvP is a fun 1-4 player arena shooter that runs in the browser
+# Simple deployment - just download and serve static files!
+
+- name: Download PvP game (multiplayer browser arena shooter)
+  ansible.builtin.get_url:
+    url: https://github.com/kesiev/pvp/archive/refs/heads/master.zip
+    dest: /tmp/pvp-master.zip
+    mode: "0644"
+  register: game_download
+
+- name: Extract PvP game
+  ansible.builtin.unarchive:
+    src: /tmp/pvp-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/pvp-master
+
+- name: Copy PvP game files to web directory
+  ansible.builtin.shell: |
+    # PvP game files are in the 'client' directory
+    if [ -d /tmp/pvp-master/client ]; then
+      # Copy client files (this is the web version)
+      find /tmp/pvp-master/client -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/ \;
+      echo "PvP client files copied successfully"
+    elif [ -d /tmp/pvp-master ]; then
+      # Fallback: copy everything if no client directory
+      find /tmp/pvp-master -mindepth 1 -maxdepth 1 -not -name ".git" -exec cp -r {} {{ web_game_dir }}/ \;
+      echo "PvP files copied successfully"
+    else
+      echo "Error: /tmp/pvp-master directory not found"
+      exit 1
+    fi
+  changed_when: true
+
+- name: Ensure index.html exists
+  ansible.builtin.stat:
+    path: "{{ web_game_dir }}/index.html"
+  register: index_check
+
+- name: Create simple redirect if index doesn't exist
+  ansible.builtin.copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <meta http-equiv="refresh" content="0; url=/info.html">
+          <title>Redirecting...</title>
+      </head>
+      <body>Redirecting to <a href="/info.html">game info</a>...</body>
+      </html>
+    dest: "{{ web_game_dir }}/index.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+  when: not index_check.stat.exists
+

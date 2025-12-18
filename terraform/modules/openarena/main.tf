@@ -123,6 +123,16 @@ resource "aws_security_group" "openarena" {
     cidr_blocks = ["0.0.0.0/0"] # Allow from anywhere for game clients
   }
 
+  # HTTP access for browser-based games
+  # Port 80 serves the PvP multiplayer game via Nginx (standard HTTP port)
+  ingress {
+    description = "HTTP access for browser-based games (port 80)"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Allow from anywhere for web browsers
+  }
+
   # Allow all outbound traffic
   # Needed for package updates, DNS resolution, and game server communication
   egress {
@@ -208,20 +218,20 @@ resource "aws_eip_association" "this" {
 
 # Cloudflare DNS record (optional)
 # Creates an A record pointing the subdomain to the Elastic IP
-# This allows players to connect using a friendly domain name (e.g., quake.alexflux.com)
+# This allows players to connect using a friendly domain name (e.g., games.alexflux.com)
 # Only created if cloudflare_zone_id is provided and is not a placeholder value
 locals {
   # Check if zone_id is a valid value (not empty and not a placeholder)
   cloudflare_enabled = var.cloudflare_zone_id != "" && var.cloudflare_zone_name != "" && var.cloudflare_zone_id != "your-zone-id-here" && var.cloudflare_zone_id != "replace_me" && !startswith(var.cloudflare_zone_id, "your-") && !startswith(var.cloudflare_zone_id, "replace")
 }
 
-resource "cloudflare_record" "quake" {
+resource "cloudflare_record" "games" {
   count = local.cloudflare_enabled ? 1 : 0
 
   zone_id = var.cloudflare_zone_id
-  name    = var.cloudflare_subdomain # e.g., "quake"
+  name    = var.cloudflare_subdomain # e.g., "games"
   type    = "A"                      # IPv4 address record
   content = aws_eip.this.public_ip   # Point to the Elastic IP
   ttl     = var.cloudflare_ttl       # DNS cache TTL in seconds
-  proxied = false                    # DNS-only, not proxied (needed for game traffic)
+  proxied = true                     # Enable Cloudflare proxy for free SSL/HTTPS
 }

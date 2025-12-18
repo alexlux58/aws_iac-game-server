@@ -1,0 +1,193 @@
+---
+# Deploy Asteroids game to /asteroids/ subdirectory
+# Classic Asteroids arcade game
+
+- name: Create Asteroids game directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}/asteroids"
+    state: directory
+    mode: "0755"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Download Asteroids game
+  ansible.builtin.get_url:
+    url: https://github.com/freeCodeCamp/Asteroids/archive/refs/heads/master.zip
+    dest: /tmp/asteroids-master.zip
+    mode: "0644"
+  register: game_download
+  ignore_errors: yes
+
+- name: Download Asteroids game (alternative)
+  ansible.builtin.get_url:
+    url: https://github.com/straker/Canvas-Asteroids/archive/refs/heads/master.zip
+    dest: /tmp/asteroids-alt.zip
+    mode: "0644"
+  register: asteroids_alt
+  when: game_download is failed
+  ignore_errors: yes
+
+- name: Extract Asteroids game (from main download)
+  ansible.builtin.unarchive:
+    src: /tmp/asteroids-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/Asteroids-master
+  when: game_download is succeeded
+
+- name: Extract Asteroids game (from alternative download)
+  ansible.builtin.unarchive:
+    src: /tmp/asteroids-alt.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/Canvas-Asteroids-master
+  when: game_download is failed and asteroids_alt is defined and asteroids_alt is succeeded
+
+- name: Find extracted Asteroids directory
+  ansible.builtin.shell: |
+    find /tmp -maxdepth 1 -type d \( -name "*asteroids*" -o -name "*Asteroids*" \) ! -name "asteroids" | head -1
+  register: asteroids_dir
+  changed_when: false
+  failed_when: false
+
+- name: Copy Asteroids game files to game directory
+  ansible.builtin.shell: |
+    if [ -n "{{ asteroids_dir.stdout }}" ] && [ -d "{{ asteroids_dir.stdout }}" ]; then
+      find {{ asteroids_dir.stdout }} -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/asteroids/ \;
+      chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/asteroids/
+      echo "Asteroids files copied successfully"
+    else
+      echo "Asteroids directory not found, will create inline game"
+    fi
+  changed_when: true
+  failed_when: false
+  register: asteroids_copy_result
+
+- name: Create simple Asteroids game if download failed
+  ansible.builtin.copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Asteroids</title>
+          <style>
+              body { margin: 0; padding: 20px; background: #000; color: #0f0; font-family: monospace; text-align: center; }
+              canvas { border: 2px solid #0f0; background: #000; }
+              h1 { color: #0f0; }
+          </style>
+      </head>
+      <body>
+          <h1>Asteroids</h1>
+          <canvas id="game" width="800" height="600"></canvas>
+          <p>Use arrow keys to move, spacebar to shoot</p>
+          <script>
+              const canvas = document.getElementById('game');
+              const ctx = canvas.getContext('2d');
+              let ship = {x: 400, y: 300, angle: 0, vx: 0, vy: 0};
+              let bullets = [];
+              let asteroids = [];
+              let score = 0;
+              for (let i = 0; i < 5; i++) {
+                  asteroids.push({
+                      x: Math.random() * canvas.width,
+                      y: Math.random() * canvas.height,
+                      vx: (Math.random() - 0.5) * 2,
+                      vy: (Math.random() - 0.5) * 2,
+                      size: 30
+                  });
+              }
+              function draw() {
+                  ctx.fillStyle = '#000';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.strokeStyle = '#0f0';
+                  ctx.lineWidth = 2;
+                  ctx.beginPath();
+                  ctx.moveTo(ship.x + 15 * Math.cos(ship.angle), ship.y + 15 * Math.sin(ship.angle));
+                  ctx.lineTo(ship.x - 10 * Math.cos(ship.angle) - 5 * Math.sin(ship.angle), ship.y - 10 * Math.sin(ship.angle) + 5 * Math.cos(ship.angle));
+                  ctx.lineTo(ship.x - 10 * Math.cos(ship.angle) + 5 * Math.sin(ship.angle), ship.y - 10 * Math.sin(ship.angle) - 5 * Math.cos(ship.angle));
+                  ctx.closePath();
+                  ctx.stroke();
+                  ctx.fillStyle = '#f00';
+                  bullets.forEach(b => ctx.fillRect(b.x - 2, b.y - 2, 4, 4));
+                  ctx.strokeStyle = '#00f';
+                  asteroids.forEach(a => {
+                      ctx.beginPath();
+                      ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2);
+                      ctx.stroke();
+                  });
+                  ctx.fillStyle = '#0f0';
+                  ctx.font = '20px monospace';
+                  ctx.fillText('Score: ' + score, 10, 30);
+              }
+              function update() {
+                  ship.x += ship.vx;
+                  ship.y += ship.vy;
+                  if (ship.x < 0) ship.x = canvas.width;
+                  if (ship.x > canvas.width) ship.x = 0;
+                  if (ship.y < 0) ship.y = canvas.height;
+                  if (ship.y > canvas.height) ship.y = 0;
+                  bullets.forEach(b => {
+                      b.x += b.vx;
+                      b.y += b.vy;
+                      if (b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height) {
+                          bullets = bullets.filter(bul => bul !== b);
+                      }
+                  });
+                  asteroids.forEach(a => {
+                      a.x += a.vx;
+                      a.y += a.vy;
+                      if (a.x < 0) a.x = canvas.width;
+                      if (a.x > canvas.width) a.x = 0;
+                      if (a.y < 0) a.y = canvas.height;
+                      if (a.y > canvas.height) a.y = 0;
+                      const dist = Math.sqrt(Math.pow(a.x - ship.x, 2) + Math.pow(a.y - ship.y, 2));
+                      if (dist < a.size + 10) {
+                          alert('Game Over! Score: ' + score);
+                          location.reload();
+                      }
+                  });
+                  bullets.forEach(b => {
+                      asteroids = asteroids.filter(a => {
+                          const dist = Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+                          if (dist < a.size) {
+                              score += 20;
+                              if (a.size > 15) {
+                                  asteroids.push({x: a.x, y: a.y, vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3, size: a.size / 2});
+                                  asteroids.push({x: a.x, y: a.y, vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3, size: a.size / 2});
+                              }
+                              return false;
+                          }
+                          return true;
+                      });
+                  });
+                  if (asteroids.length === 0) {
+                      alert('You Win! Score: ' + score);
+                      location.reload();
+                  }
+              }
+              document.addEventListener('keydown', (e) => {
+                  if (e.key === 'ArrowLeft') ship.angle -= 0.1;
+                  if (e.key === 'ArrowRight') ship.angle += 0.1;
+                  if (e.key === 'ArrowUp') {
+                      ship.vx += Math.cos(ship.angle) * 0.2;
+                      ship.vy += Math.sin(ship.angle) * 0.2;
+                  }
+                  if (e.key === ' ') {
+                      bullets.push({
+                          x: ship.x + 15 * Math.cos(ship.angle),
+                          y: ship.y + 15 * Math.sin(ship.angle),
+                          vx: Math.cos(ship.angle) * 5,
+                          vy: Math.sin(ship.angle) * 5
+                      });
+                  }
+              });
+              setInterval(() => { update(); draw(); }, 16);
+          </script>
+      </body>
+      </html>
+    dest: "{{ web_game_dir }}/asteroids/index.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+  when: asteroids_copy_result.rc != 0 or not asteroids_dir.stdout
+

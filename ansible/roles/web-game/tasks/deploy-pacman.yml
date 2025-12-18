@@ -1,0 +1,49 @@
+---
+# Deploy Pac-Man game to /pacman/ subdirectory
+# Classic arcade maze game
+
+- name: Create Pac-Man game directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}/pacman"
+    state: directory
+    mode: "0755"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Download Pac-Man game (JavaScript/HTML5 version)
+  ansible.builtin.get_url:
+    url: https://github.com/GerardAlbajar/Pacman-js/archive/refs/heads/master.zip
+    dest: /tmp/pacman-master.zip
+    mode: "0644"
+  register: game_download
+
+- name: Extract Pac-Man game
+  ansible.builtin.unarchive:
+    src: /tmp/pacman-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/Pacman-js-master
+
+- name: Copy Pac-Man game files to game directory
+  ansible.builtin.shell: |
+    # Try common directory names first (based on the creates path in unarchive)
+    if [ -d /tmp/Pacman-js-master ]; then
+      find /tmp/Pacman-js-master -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/pacman/ \;
+      chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/pacman/
+      echo "Pac-Man files copied from /tmp/Pacman-js-master"
+    else
+      # Fallback: find any directory with pacman in the name
+      PACMAN_DIR=$(find /tmp -maxdepth 1 -type d \( -name "*Pacman*" -o -name "*pacman*" \) ! -name "pacman" 2>/dev/null | head -1)
+      if [ -n "$PACMAN_DIR" ] && [ -d "$PACMAN_DIR" ]; then
+        find "$PACMAN_DIR" -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/pacman/ \;
+        chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/pacman/
+        echo "Pac-Man files copied from $PACMAN_DIR"
+      else
+        echo "Error: Pac-Man directory not found in /tmp"
+        echo "Contents of /tmp:"
+        ls -la /tmp | grep -i pacman || echo "No pacman files found"
+        exit 1
+      fi
+    fi
+  changed_when: true
+

@@ -1,0 +1,180 @@
+---
+# Deploy Tetris game to /tetris/ subdirectory
+# Classic Tetris puzzle game
+
+- name: Create Tetris game directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}/tetris"
+    state: directory
+    mode: "0755"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Download Tetris game
+  ansible.builtin.get_url:
+    url: https://github.com/jakesgordon/javascript-tetris/archive/refs/heads/master.zip
+    dest: /tmp/tetris-master.zip
+    mode: "0644"
+  register: game_download
+  ignore_errors: yes
+
+- name: Download Tetris game (alternative)
+  ansible.builtin.get_url:
+    url: https://github.com/straker/Canvas-Tetris/archive/refs/heads/master.zip
+    dest: /tmp/tetris-alt.zip
+    mode: "0644"
+  register: tetris_alt
+  when: game_download is failed
+  ignore_errors: yes
+
+- name: Extract Tetris game (from main download)
+  ansible.builtin.unarchive:
+    src: /tmp/tetris-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/javascript-tetris-master
+  when: game_download is succeeded
+
+- name: Extract Tetris game (from alternative download)
+  ansible.builtin.unarchive:
+    src: /tmp/tetris-alt.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/Canvas-Tetris-master
+  when: game_download is failed and tetris_alt is defined and tetris_alt is succeeded
+
+- name: Find extracted Tetris directory
+  ansible.builtin.shell: |
+    find /tmp -maxdepth 1 -type d \( -name "*tetris*" -o -name "*Tetris*" \) ! -name "tetris" | head -1
+  register: tetris_dir
+  changed_when: false
+  failed_when: false
+
+- name: Copy Tetris game files to game directory
+  ansible.builtin.shell: |
+    if [ -n "{{ tetris_dir.stdout }}" ] && [ -d "{{ tetris_dir.stdout }}" ]; then
+      find {{ tetris_dir.stdout }} -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/tetris/ \;
+      chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/tetris/
+      echo "Tetris files copied successfully"
+    else
+      echo "Tetris directory not found, will create inline game"
+    fi
+  changed_when: true
+  failed_when: false
+  register: tetris_copy_result
+
+- name: Create simple Tetris game if download failed
+  ansible.builtin.copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Tetris</title>
+          <style>
+              body { margin: 0; padding: 20px; background: #000; color: #0f0; font-family: monospace; text-align: center; }
+              canvas { border: 2px solid #0f0; background: #000; }
+              h1 { color: #0f0; }
+              .info { margin: 10px; font-size: 14px; }
+          </style>
+      </head>
+      <body>
+          <h1>Tetris</h1>
+          <canvas id="game" width="300" height="600"></canvas>
+          <div class="info">Use arrow keys to play</div>
+          <script>
+              const canvas = document.getElementById('game');
+              const ctx = canvas.getContext('2d');
+              const COLS = 10, ROWS = 20, BLOCK = 30;
+              let board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+              let score = 0;
+              let piece = null;
+              const shapes = [
+                  [[1,1,1,1]],
+                  [[1,1],[1,1]],
+                  [[0,1,0],[1,1,1]],
+                  [[0,1,1],[1,1,0]],
+                  [[1,1,0],[0,1,1]],
+                  [[1,0,0],[1,1,1]],
+                  [[0,0,1],[1,1,1]]
+              ];
+              function newPiece() {
+                  piece = {shape: shapes[Math.floor(Math.random()*shapes.length)], x: 4, y: 0};
+              }
+              function draw() {
+                  ctx.fillStyle = '#000';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.fillStyle = '#0f0';
+                  board.forEach((row, y) => row.forEach((val, x) => {
+                      if (val) ctx.fillRect(x*BLOCK, y*BLOCK, BLOCK-2, BLOCK-2);
+                  }));
+                  if (piece) {
+                      ctx.fillStyle = '#f00';
+                      piece.shape.forEach((row, y) => row.forEach((val, x) => {
+                          if (val) ctx.fillRect((piece.x+x)*BLOCK, (piece.y+y)*BLOCK, BLOCK-2, BLOCK-2);
+                      }));
+                  }
+                  ctx.fillStyle = '#0f0';
+                  ctx.font = '16px monospace';
+                  ctx.fillText('Score: ' + score, 10, 20);
+              }
+              function move(dx, dy) {
+                  if (!piece) return;
+                  piece.x += dx;
+                  piece.y += dy;
+                  if (collision()) {
+                      piece.x -= dx;
+                      piece.y -= dy;
+                      if (dy > 0) {
+                          piece.shape.forEach((row, y) => row.forEach((val, x) => {
+                              if (val) board[piece.y+y][piece.x+x] = 1;
+                          }));
+                          for (let y = ROWS-1; y >= 0; y--) {
+                              if (board[y].every(v => v)) {
+                                  board.splice(y, 1);
+                                  board.unshift(Array(COLS).fill(0));
+                                  score += 10;
+                              }
+                          }
+                          newPiece();
+                          if (collision()) {
+                              alert('Game Over! Score: ' + score);
+                              board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+                              score = 0;
+                              newPiece();
+                          }
+                      }
+                  }
+              }
+              function collision() {
+                  if (!piece) return false;
+                  return piece.shape.some((row, y) => row.some((val, x) => {
+                      if (!val) return false;
+                      const nx = piece.x + x, ny = piece.y + y;
+                      return nx < 0 || nx >= COLS || ny >= ROWS || (ny >= 0 && board[ny][nx]);
+                  }));
+              }
+              function rotate() {
+                  if (!piece) return;
+                  const rotated = piece.shape[0].map((_, i) => piece.shape.map(row => row[i])).reverse();
+                  const oldShape = piece.shape;
+                  piece.shape = rotated;
+                  if (collision()) piece.shape = oldShape;
+              }
+              document.addEventListener('keydown', (e) => {
+                  if (e.key === 'ArrowLeft') move(-1, 0);
+                  if (e.key === 'ArrowRight') move(1, 0);
+                  if (e.key === 'ArrowDown') move(0, 1);
+                  if (e.key === 'ArrowUp') rotate();
+              });
+              newPiece();
+              setInterval(() => { move(0, 1); draw(); }, 500);
+              draw();
+          </script>
+      </body>
+      </html>
+    dest: "{{ web_game_dir }}/tetris/index.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+  when: tetris_copy_result.rc != 0 or not tetris_dir.stdout
+

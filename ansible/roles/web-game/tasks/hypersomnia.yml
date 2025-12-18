@@ -1,0 +1,97 @@
+---
+# Deploy Hypersomnia - Multiplayer top-down shooter for browser
+# Much simpler than QuakeJS - just serve static files!
+
+- name: Clone Hypersomnia repository
+  ansible.builtin.git:
+    repo: https://github.com/team-eternity/hypersomnia.git
+    dest: /tmp/hypersomnia
+    version: master
+    force: yes
+  register: hypersomnia_clone
+
+- name: Check if Hypersomnia web directory exists
+  ansible.builtin.stat:
+    path: /tmp/hypersomnia/web
+  register: hypersomnia_web_dir
+
+- name: Find Hypersomnia web build files
+  ansible.builtin.find:
+    paths: /tmp/hypersomnia
+    patterns:
+      - "*.html"
+      - "*.js"
+      - "*.wasm"
+      - "web"
+    recurse: true
+  register: hypersomnia_files
+  ignore_errors: yes
+
+- name: Copy Hypersomnia web files to web directory
+  ansible.builtin.shell: |
+    # Try to find and copy web build
+    if [ -d /tmp/hypersomnia/web ]; then
+      echo "Found web directory"
+      cp -r /tmp/hypersomnia/web/* {{ web_game_dir }}/
+    elif [ -d /tmp/hypersomnia/build/web ]; then
+      echo "Found build/web directory"
+      cp -r /tmp/hypersomnia/build/web/* {{ web_game_dir }}/
+    elif [ -f /tmp/hypersomnia/index.html ]; then
+      echo "Found index.html in root"
+      cp -r /tmp/hypersomnia/* {{ web_game_dir }}/ 2>/dev/null || true
+    else
+      echo "No web build found, will try to build or use alternative"
+      exit 1
+    fi
+  changed_when: hypersomnia_clone.changed
+  ignore_errors: yes
+  register: copy_result
+
+- name: Download Hypersomnia web build if git fails (alternative)
+  ansible.builtin.get_url:
+    url: https://github.com/team-eternity/hypersomnia/releases/latest/download/web.zip
+    dest: /tmp/hypersomnia-web.zip
+  ignore_errors: yes
+  register: hypersomnia_download
+
+- name: Extract Hypersomnia web build if downloaded
+  ansible.builtin.unarchive:
+    src: /tmp/hypersomnia-web.zip
+    dest: "{{ web_game_dir }}"
+    remote_src: true
+  when: hypersomnia_download is succeeded and hypersomnia_download.changed
+  ignore_errors: yes
+
+- name: Check if index.html exists
+  ansible.builtin.stat:
+    path: "{{ web_game_dir }}/index.html"
+  register: index_exists
+
+- name: Create Hypersomnia index redirect if game files exist
+  ansible.builtin.copy:
+    content: |
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta http-equiv="refresh" content="0; url=/info.html">
+          <title>Hypersomnia - Redirecting...</title>
+      </head>
+      <body>
+          <p>Redirecting to <a href="/info.html">game info</a>...</p>
+      </body>
+      </html>
+    dest: "{{ web_game_dir }}/index.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+  when: not index_exists.stat.exists
+
+- name: Set proper permissions on web directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+    recurse: true
+    mode: "0755"
+

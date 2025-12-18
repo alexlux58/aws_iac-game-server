@@ -1,0 +1,148 @@
+---
+# Deploy Breakout game to /breakout/ subdirectory
+# Classic Breakout arcade game
+
+- name: Create Breakout game directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}/breakout"
+    state: directory
+    mode: "0755"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Download Breakout game
+  ansible.builtin.get_url:
+    url: https://github.com/freeCodeCamp/Breakout/archive/refs/heads/master.zip
+    dest: /tmp/breakout-master.zip
+    mode: "0644"
+  register: game_download
+  ignore_errors: yes
+
+- name: Download Breakout game (alternative)
+  ansible.builtin.get_url:
+    url: https://github.com/straker/Canvas-Breakout/archive/refs/heads/master.zip
+    dest: /tmp/breakout-alt.zip
+    mode: "0644"
+  register: breakout_alt
+  when: game_download is failed
+  ignore_errors: yes
+
+- name: Extract Breakout game (from main download)
+  ansible.builtin.unarchive:
+    src: /tmp/breakout-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/Breakout-master
+  when: game_download is succeeded
+
+- name: Extract Breakout game (from alternative download)
+  ansible.builtin.unarchive:
+    src: /tmp/breakout-alt.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/Canvas-Breakout-master
+  when: game_download is failed and breakout_alt is defined and breakout_alt is succeeded
+
+- name: Find extracted Breakout directory
+  ansible.builtin.shell: |
+    find /tmp -maxdepth 1 -type d \( -name "*breakout*" -o -name "*Breakout*" \) ! -name "breakout" | head -1
+  register: breakout_dir
+  changed_when: false
+  failed_when: false
+
+- name: Copy Breakout game files to game directory
+  ansible.builtin.shell: |
+    if [ -n "{{ breakout_dir.stdout }}" ] && [ -d "{{ breakout_dir.stdout }}" ]; then
+      find {{ breakout_dir.stdout }} -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/breakout/ \;
+      chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/breakout/
+      echo "Breakout files copied successfully"
+    else
+      echo "Breakout directory not found, will create inline game"
+    fi
+  changed_when: true
+  failed_when: false
+  register: breakout_copy_result
+
+- name: Create simple Breakout game if download failed
+  ansible.builtin.copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Breakout</title>
+          <style>
+              body { margin: 0; padding: 20px; background: #000; color: #0f0; font-family: monospace; text-align: center; }
+              canvas { border: 2px solid #0f0; background: #000; }
+              h1 { color: #0f0; }
+          </style>
+      </head>
+      <body>
+          <h1>Breakout</h1>
+          <canvas id="game" width="800" height="600"></canvas>
+          <p>Use arrow keys to move paddle</p>
+          <script>
+              const canvas = document.getElementById('game');
+              const ctx = canvas.getContext('2d');
+              let paddle = {x: 350, y: 550};
+              let ball = {x: 400, y: 300, dx: 5, dy: -5};
+              let bricks = [];
+              let score = 0;
+              for (let i = 0; i < 10; i++) {
+                  for (let j = 0; j < 5; j++) {
+                      bricks.push({x: i*75 + 25, y: j*30 + 50, alive: true});
+                  }
+              }
+              function draw() {
+                  ctx.fillStyle = '#000';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.fillStyle = '#0f0';
+                  ctx.fillRect(paddle.x, paddle.y, 100, 10);
+                  ctx.fillStyle = '#f00';
+                  ctx.fillRect(ball.x - 5, ball.y - 5, 10, 10);
+                  ctx.fillStyle = '#ff0';
+                  bricks.forEach(b => {
+                      if (b.alive) ctx.fillRect(b.x, b.y, 70, 25);
+                  });
+                  ctx.fillStyle = '#0f0';
+                  ctx.font = '20px monospace';
+                  ctx.fillText('Score: ' + score, 10, 30);
+              }
+              function update() {
+                  ball.x += ball.dx;
+                  ball.y += ball.dy;
+                  if (ball.x <= 5 || ball.x >= canvas.width - 5) ball.dx = -ball.dx;
+                  if (ball.y <= 5) ball.dy = -ball.dy;
+                  if (ball.y >= paddle.y && ball.x >= paddle.x && ball.x <= paddle.x + 100) {
+                      ball.dy = -ball.dy;
+                      ball.y = paddle.y - 5;
+                  }
+                  bricks.forEach(b => {
+                      if (b.alive && ball.x >= b.x && ball.x <= b.x + 70 && ball.y >= b.y && ball.y <= b.y + 25) {
+                          b.alive = false;
+                          ball.dy = -ball.dy;
+                          score += 10;
+                      }
+                  });
+                  if (ball.y > canvas.height) {
+                      alert('Game Over! Score: ' + score);
+                      location.reload();
+                  }
+                  if (bricks.every(b => !b.alive)) {
+                      alert('You Win! Score: ' + score);
+                      location.reload();
+                  }
+              }
+              document.addEventListener('keydown', (e) => {
+                  if (e.key === 'ArrowLeft') paddle.x = Math.max(0, paddle.x - 20);
+                  if (e.key === 'ArrowRight') paddle.x = Math.min(canvas.width - 100, paddle.x + 20);
+              });
+              setInterval(() => { update(); draw(); }, 16);
+          </script>
+      </body>
+      </html>
+    dest: "{{ web_game_dir }}/breakout/index.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+  when: breakout_copy_result.rc != 0 or not breakout_dir.stdout
+

@@ -1,0 +1,7 @@
+---
+# Handlers for web-game role
+
+- name: Restart Nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: restarted

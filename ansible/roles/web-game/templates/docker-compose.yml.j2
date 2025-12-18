@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  quakejs:
+    image: mazaclub/quakejs:latest
+    container_name: quakejs
+    ports:
+      - "8080:8080"
+      - "27960:27960/udp"
+    volumes:
+      - ./baseoa:/opt/quakejs/baseoa
+      - ./missionpack:/opt/quakejs/missionpack
+    environment:
+      - SERVER_NAME={{ oa_sv_hostname | default('OpenArena on AWS') }}
+      - MAX_CLIENTS={{ oa_max_clients | default(8) }}
+      - GAME_TYPE={{ oa_gametype | default(0) }}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+

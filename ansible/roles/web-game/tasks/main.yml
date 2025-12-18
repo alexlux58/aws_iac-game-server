@@ -1,0 +1,119 @@
+---
+# Install Nginx and deploy multiple browser games
+# Multi-game arcade with game selection screen
+# Games: 2048, PvP Arena, Pac-Man, Super Mario Bros, Snake, Tetris, Pong, Flappy Bird, Space Invaders, Breakout, Asteroids, Tic-Tac-Toe
+
+- name: Install required packages
+  ansible.builtin.command:
+    cmd: yum install -y unzip curl
+    creates: /usr/bin/unzip
+  register: packages_result
+  changed_when: "'Nothing to do' not in packages_result.stdout"
+
+- name: Check if Nginx is installed
+  ansible.builtin.stat:
+    path: /usr/sbin/nginx
+  register: nginx_installed
+
+- name: Install Nginx web server via amazon-linux-extras
+  ansible.builtin.command:
+    cmd: amazon-linux-extras install -y nginx1
+  when: not nginx_installed.stat.exists
+  register: nginx_install_result
+
+- name: Ensure nginx user exists
+  ansible.builtin.user:
+    name: "{{ nginx_user }}"
+    state: present
+    system: true
+    shell: /sbin/nologin
+    create_home: false
+  when: nginx_install_result.changed or not nginx_installed.stat.exists
+
+- name: Ensure parent directory exists
+  ansible.builtin.file:
+    path: /var/www
+    state: directory
+    mode: "0755"
+
+- name: Create web directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Deploy 2048 game
+  ansible.builtin.include_tasks: deploy-2048.yml
+
+- name: Deploy PvP Arena game
+  ansible.builtin.include_tasks: deploy-pvp.yml
+
+- name: Deploy Pac-Man game
+  ansible.builtin.include_tasks: deploy-pacman.yml
+
+- name: Deploy Super Mario Bros game
+  ansible.builtin.include_tasks: deploy-mario.yml
+
+- name: Deploy Snake game
+  ansible.builtin.include_tasks: deploy-snake.yml
+
+- name: Deploy Tetris game
+  ansible.builtin.include_tasks: deploy-tetris.yml
+
+- name: Deploy Pong game
+  ansible.builtin.include_tasks: deploy-pong.yml
+
+- name: Deploy Flappy Bird game
+  ansible.builtin.include_tasks: deploy-flappy.yml
+
+- name: Deploy Space Invaders game
+  ansible.builtin.include_tasks: deploy-spaceinvaders.yml
+
+- name: Deploy Breakout game
+  ansible.builtin.include_tasks: deploy-breakout.yml
+
+- name: Deploy Asteroids game
+  ansible.builtin.include_tasks: deploy-asteroids.yml
+
+# Tic-Tac-Toe game commented out due to YAML parsing error
+# - name: Deploy Tic-Tac-Toe game
+#   ansible.builtin.include_tasks: deploy-tictactoe.yml
+
+- name: Create game selection page (main index)
+  ansible.builtin.template:
+    src: game-selection.html.j2
+    dest: "{{ web_game_dir }}/index.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Create info page
+  ansible.builtin.template:
+    src: info.html.j2
+    dest: "{{ web_game_dir }}/info.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Set proper permissions and ownership on web directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+    recurse: true
+    mode: "0755"
+
+- name: Configure Nginx
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    mode: "0644"
+  notify: Restart Nginx
+
+- name: Start and enable Nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: true

@@ -1,0 +1,135 @@
+---
+# Deploy Pong game to /pong/ subdirectory
+# Classic Pong arcade game
+
+- name: Create Pong game directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}/pong"
+    state: directory
+    mode: "0755"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Download Pong game
+  ansible.builtin.get_url:
+    url: https://github.com/freeCodeCamp/Pong/archive/refs/heads/master.zip
+    dest: /tmp/pong-master.zip
+    mode: "0644"
+  register: game_download
+  ignore_errors: yes
+
+- name: Download Pong game (alternative)
+  ansible.builtin.get_url:
+    url: https://github.com/straker/Canvas-Pong/archive/refs/heads/master.zip
+    dest: /tmp/pong-alt.zip
+    mode: "0644"
+  register: pong_alt
+  when: game_download is failed
+  ignore_errors: yes
+
+- name: Extract Pong game (from main download)
+  ansible.builtin.unarchive:
+    src: /tmp/pong-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/Pong-master
+  when: game_download is succeeded
+
+- name: Extract Pong game (from alternative download)
+  ansible.builtin.unarchive:
+    src: /tmp/pong-alt.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/Canvas-Pong-master
+  when: game_download is failed and pong_alt is defined and pong_alt is succeeded
+
+- name: Find extracted Pong directory
+  ansible.builtin.shell: |
+    find /tmp -maxdepth 1 -type d \( -name "*pong*" -o -name "*Pong*" \) ! -name "pong" | head -1
+  register: pong_dir
+  changed_when: false
+  failed_when: false
+
+- name: Copy Pong game files to game directory
+  ansible.builtin.shell: |
+    if [ -n "{{ pong_dir.stdout }}" ] && [ -d "{{ pong_dir.stdout }}" ]; then
+      find {{ pong_dir.stdout }} -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/pong/ \;
+      chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/pong/
+      echo "Pong files copied successfully"
+    else
+      echo "Pong directory not found, will create inline game"
+    fi
+  changed_when: true
+  failed_when: false
+  register: pong_copy_result
+
+- name: Create simple Pong game if download failed
+  ansible.builtin.copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Pong</title>
+          <style>
+              body { margin: 0; padding: 20px; background: #000; color: #0f0; font-family: monospace; text-align: center; }
+              canvas { border: 2px solid #0f0; background: #000; }
+              h1 { color: #0f0; }
+          </style>
+      </head>
+      <body>
+          <h1>Pong</h1>
+          <canvas id="game" width="800" height="400"></canvas>
+          <p>Use W/S keys to move paddle</p>
+          <script>
+              const canvas = document.getElementById('game');
+              const ctx = canvas.getContext('2d');
+              const paddleHeight = 80, paddleWidth = 10;
+              let playerY = 160, aiY = 160;
+              let ballX = 400, ballY = 200, ballDX = 5, ballDY = 3;
+              let score = 0;
+              function draw() {
+                  ctx.fillStyle = '#000';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.fillStyle = '#0f0';
+                  ctx.fillRect(10, playerY, paddleWidth, paddleHeight);
+                  ctx.fillRect(canvas.width - 20, aiY, paddleWidth, paddleHeight);
+                  ctx.fillRect(ballX - 5, ballY - 5, 10, 10);
+                  ctx.font = '20px monospace';
+                  ctx.fillText('Score: ' + score, 350, 30);
+              }
+              function update() {
+                  ballX += ballDX;
+                  ballY += ballDY;
+                  if (ballY <= 5 || ballY >= canvas.height - 5) ballDY = -ballDY;
+                  aiY = ballY - paddleHeight/2;
+                  if (aiY < 0) aiY = 0;
+                  if (aiY > canvas.height - paddleHeight) aiY = canvas.height - paddleHeight;
+                  if (ballX <= 20 && ballY >= playerY && ballY <= playerY + paddleHeight) {
+                      ballDX = -ballDX;
+                      score++;
+                  }
+                  if (ballX >= canvas.width - 20 && ballY >= aiY && ballY <= aiY + paddleHeight) {
+                      ballDX = -ballDX;
+                  }
+                  if (ballX < 0 || ballX > canvas.width) {
+                      ballX = 400;
+                      ballY = 200;
+                      ballDX = 5;
+                      ballDY = 3;
+                      score = 0;
+                  }
+              }
+              document.addEventListener('keydown', (e) => {
+                  if (e.key === 'w' || e.key === 'W') playerY = Math.max(0, playerY - 10);
+                  if (e.key === 's' || e.key === 'S') playerY = Math.min(canvas.height - paddleHeight, playerY + 10);
+              });
+              setInterval(() => { update(); draw(); }, 16);
+          </script>
+      </body>
+      </html>
+    dest: "{{ web_game_dir }}/pong/index.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+  when: pong_copy_result.rc != 0 or not pong_dir.stdout
+

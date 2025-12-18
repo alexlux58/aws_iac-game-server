@@ -1,0 +1,238 @@
+---
+# Deploy Super Mario Bros game to /mario/ subdirectory
+# HTML5 remake of classic platformer
+
+- name: Create Mario game directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}/mario"
+    state: directory
+    mode: "0755"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Download Super Mario Bros game (HTML5 version)
+  ansible.builtin.get_url:
+    url: https://github.com/umaim/Mario/archive/refs/heads/master.zip
+    dest: /tmp/mario-master.zip
+    mode: "0644"
+  register: game_download
+
+- name: Extract Mario game
+  ansible.builtin.unarchive:
+    src: /tmp/mario-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/Mario-master
+
+- name: Copy Mario game files to game directory
+  ansible.builtin.shell: |
+    # Try common directory names first (based on the creates path in unarchive)
+    if [ -d /tmp/Mario-master ]; then
+      find /tmp/Mario-master -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/mario/ \;
+      chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/mario/
+      echo "Mario files copied from /tmp/Mario-master"
+    else
+      # Fallback: find any directory with mario in the name
+      MARIO_DIR=$(find /tmp -maxdepth 1 -type d \( -name "*Mario*" -o -name "*mario*" \) ! -name "mario" 2>/dev/null | head -1)
+      if [ -n "$MARIO_DIR" ] && [ -d "$MARIO_DIR" ]; then
+        find "$MARIO_DIR" -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/mario/ \;
+        chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/mario/
+        echo "Mario files copied from $MARIO_DIR"
+      else
+        echo "Error: Mario directory not found in /tmp"
+        echo "Contents of /tmp:"
+        ls -la /tmp | grep -i mario || echo "No mario files found"
+        exit 1
+      fi
+    fi
+  changed_when: true
+
+- name: Create simple Mario game index (ensures /mario/ works)
+  ansible.builtin.copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Super Mario Bros</title>
+          <meta charset="utf-8" />
+          <style>
+              body {
+                  margin: 0;
+                  padding: 0;
+                  background: radial-gradient(circle at top, #ffcc00 0, #ff6600 35%, #120013 100%);
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                  color: #fff;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  height: 100vh;
+                  overflow: hidden;
+              }
+              .frame {
+                  width: 960px;
+                  max-width: 100%;
+                  height: 540px;
+                  max-height: 90vh;
+                  background: #000;
+                  border-radius: 12px;
+                  box-shadow: 0 0 40px rgba(0,0,0,0.8);
+                  position: relative;
+                  overflow: hidden;
+                  border: 3px solid #ffcc00;
+              }
+              .overlay {
+                  position: absolute;
+                  inset: 0;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                  text-align: center;
+                  padding: 20px;
+                  background: radial-gradient(circle at top, rgba(255,255,255,0.1), rgba(0,0,0,0.9));
+              }
+              h1 {
+                  font-size: 3rem;
+                  text-shadow: 0 0 10px #ffcc00, 0 0 20px #ff6600;
+                  margin-bottom: 10px;
+              }
+              p {
+                  max-width: 540px;
+                  margin-bottom: 20px;
+                  opacity: 0.9;
+              }
+              .btn {
+                  display: inline-block;
+                  padding: 12px 28px;
+                  border-radius: 999px;
+                  background: linear-gradient(90deg, #ffcc00, #ff6600);
+                  color: #000;
+                  font-weight: 600;
+                  text-decoration: none;
+                  box-shadow: 0 0 15px rgba(0,0,0,0.8);
+                  cursor: pointer;
+                  border: none;
+                  font-size: 1rem;
+              }
+              .btn:hover {
+                  transform: translateY(-1px);
+                  box-shadow: 0 0 20px rgba(0,0,0,1);
+              }
+              canvas {
+                  position: absolute;
+                  inset: 0;
+                  width: 100%;
+                  height: 100%;
+              }
+          </style>
+      </head>
+      <body>
+          <div class="frame">
+              <canvas id="game"></canvas>
+              <div class="overlay">
+                  <h1>Super Mario Bros</h1>
+                  <p>A simple built‑in Mario-style demo is running here to ensure the game
+                     loads even if external assets fail.</p>
+                  <button class="btn" onclick="startGame()">Start Running →</button>
+              </div>
+          </div>
+          <script>
+              const canvas = document.getElementById('game');
+              const ctx = canvas.getContext('2d');
+              function resize() {
+                  const rect = canvas.parentElement.getBoundingClientRect();
+                  canvas.width = rect.width;
+                  canvas.height = rect.height;
+              }
+              window.addEventListener('resize', resize);
+              resize();
+
+              let running = false;
+              const groundY = () => canvas.height - 60;
+              const mario = { x: 80, y: 0, vy: 0, w: 32, h: 48 };
+              const pipes = [];
+              let lastPipe = 0;
+
+              function spawnPipe() {
+                  const h = 60 + Math.random() * 80;
+                  pipes.push({ x: canvas.width + 40, y: groundY() - h, w: 40, h });
+              }
+
+              function startGame() {
+                  running = true;
+                  mario.y = groundY() - mario.h;
+                  mario.vy = 0;
+                  pipes.length = 0;
+                  lastPipe = performance.now();
+              }
+
+              document.addEventListener('keydown', e => {
+                  if (!running && (e.key === ' ' || e.key === 'ArrowUp')) startGame();
+                  else if (running && (e.key === ' ' || e.key === 'ArrowUp')) {
+                      if (Math.abs(mario.y - (groundY() - mario.h)) < 2) {
+                          mario.vy = -14;
+                      }
+                  }
+              });
+
+              function loop(ts) {
+                  requestAnimationFrame(loop);
+                  ctx.fillStyle = '#1e0033';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                  // background hills
+                  ctx.fillStyle = '#220044';
+                  ctx.fillRect(0, groundY(), canvas.width, canvas.height - groundY());
+                  ctx.fillStyle = '#006600';
+                  ctx.fillRect(0, groundY() + 10, canvas.width, 12);
+
+                  if (!running) return;
+
+                  const dt = 16;
+                  // physics
+                  mario.vy += 0.8;
+                  mario.y += mario.vy;
+                  if (mario.y > groundY() - mario.h) {
+                      mario.y = groundY() - mario.h;
+                      mario.vy = 0;
+                  }
+
+                  if (ts - lastPipe > 1800) {
+                      spawnPipe();
+                      lastPipe = ts;
+                  }
+                  pipes.forEach(p => p.x -= 4);
+                  while (pipes.length && pipes[0].x + pipes[0].w < -50) pipes.shift();
+
+                  // draw pipes
+                  ctx.fillStyle = '#00aa00';
+                  pipes.forEach(p => {
+                      ctx.fillRect(p.x, p.y, p.w, p.h);
+                  });
+
+                  // collision
+                  for (const p of pipes) {
+                      if (mario.x < p.x + p.w &&
+                          mario.x + mario.w > p.x &&
+                          mario.y + mario.h > p.y) {
+                          running = false;
+                      }
+                  }
+
+                  // draw mario
+                  ctx.fillStyle = '#ff0000';
+                  ctx.fillRect(mario.x, mario.y, mario.w, mario.h);
+                  ctx.fillStyle = '#ffd19a';
+                  ctx.fillRect(mario.x + 8, mario.y - 12, 16, 16);
+                  ctx.fillStyle = '#0000ff';
+                  ctx.fillRect(mario.x + 10, mario.y + 24, 12, 20);
+              }
+              requestAnimationFrame(loop);
+          </script>
+      </body>
+      </html>
+    dest: "{{ web_game_dir }}/mario/index.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+

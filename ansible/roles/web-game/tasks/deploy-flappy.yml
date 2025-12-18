@@ -1,0 +1,164 @@
+---
+# Deploy Flappy Bird game to /flappy/ subdirectory
+# Flappy Bird clone
+
+- name: Create Flappy Bird game directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}/flappy"
+    state: directory
+    mode: "0755"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Download Flappy Bird game
+  ansible.builtin.get_url:
+    url: https://github.com/nebez/floppybird/archive/refs/heads/master.zip
+    dest: /tmp/flappy-master.zip
+    mode: "0644"
+  register: game_download
+  ignore_errors: yes
+
+- name: Download Flappy Bird game (alternative)
+  ansible.builtin.get_url:
+    url: https://github.com/straker/Flappy-Bird/archive/refs/heads/master.zip
+    dest: /tmp/flappy-alt.zip
+    mode: "0644"
+  register: flappy_alt
+  when: game_download is failed
+  ignore_errors: yes
+
+- name: Extract Flappy Bird game (from main download)
+  ansible.builtin.unarchive:
+    src: /tmp/flappy-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/floppybird-master
+  when: game_download is succeeded
+
+- name: Extract Flappy Bird game (from alternative download)
+  ansible.builtin.unarchive:
+    src: /tmp/flappy-alt.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/Flappy-Bird-master
+  when: game_download is failed and flappy_alt is defined and flappy_alt is succeeded
+
+- name: Find extracted Flappy Bird directory
+  ansible.builtin.shell: |
+    find /tmp -maxdepth 1 -type d \( -name "*flappy*" -o -name "*floppy*" -o -name "*Floppy*" \) ! -name "flappy" | head -1
+  register: flappy_dir
+  changed_when: false
+  failed_when: false
+
+- name: Copy Flappy Bird game files to game directory
+  ansible.builtin.shell: |
+    if [ -n "{{ flappy_dir.stdout }}" ] && [ -d "{{ flappy_dir.stdout }}" ]; then
+      find {{ flappy_dir.stdout }} -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/flappy/ \;
+      chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/flappy/
+      echo "Flappy Bird files copied successfully"
+    else
+      echo "Flappy Bird directory not found, will create inline game"
+    fi
+  changed_when: true
+  failed_when: false
+  register: flappy_copy_result
+
+- name: Create simple Flappy Bird game if download failed
+  ansible.builtin.copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Flappy Bird</title>
+          <style>
+              body { margin: 0; padding: 20px; background: #4ec0ca; font-family: Arial, sans-serif; text-align: center; }
+              canvas { border: 2px solid #333; background: #4ec0ca; }
+              h1 { color: #fff; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+          </style>
+      </head>
+      <body>
+          <h1>Flappy Bird</h1>
+          <canvas id="game" width="400" height="600"></canvas>
+          <p>Click or press spacebar to fly</p>
+          <script>
+              const canvas = document.getElementById('game');
+              const ctx = canvas.getContext('2d');
+              let bird = {x: 50, y: 250, vy: 0};
+              let pipes = [];
+              let score = 0;
+              let gameOver = false;
+              function draw() {
+                  ctx.fillStyle = '#4ec0ca';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.fillStyle = '#ffd700';
+                  ctx.fillRect(bird.x, bird.y, 30, 30);
+                  ctx.fillStyle = '#0f0';
+                  pipes.forEach(p => {
+                      ctx.fillRect(p.x, 0, 50, p.top);
+                      ctx.fillRect(p.x, p.bottom, 50, canvas.height - p.bottom);
+                  });
+                  ctx.fillStyle = '#fff';
+                  ctx.font = '24px Arial';
+                  ctx.fillText('Score: ' + score, 10, 30);
+                  if (gameOver) {
+                      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                      ctx.fillRect(0, 0, canvas.width, canvas.height);
+                      ctx.fillStyle = '#fff';
+                      ctx.font = '36px Arial';
+                      ctx.fillText('Game Over!', 100, 250);
+                      ctx.font = '24px Arial';
+                      ctx.fillText('Click to restart', 100, 300);
+                  }
+              }
+              function update() {
+                  if (gameOver) return;
+                  bird.vy += 0.5;
+                  bird.y += bird.vy;
+                  if (bird.y > canvas.height - 30 || bird.y < 0) {
+                      gameOver = true;
+                      return;
+                  }
+                  if (Math.random() < 0.02) {
+                      pipes.push({x: canvas.width, top: Math.random() * 200 + 100, bottom: Math.random() * 200 + 300});
+                  }
+                  pipes.forEach(p => {
+                      p.x -= 2;
+                      if (p.x < bird.x + 30 && p.x + 50 > bird.x && (bird.y < p.top || bird.y + 30 > p.bottom)) {
+                          gameOver = true;
+                      }
+                      if (p.x + 50 < bird.x && !p.scored) {
+                          score++;
+                          p.scored = true;
+                      }
+                  });
+                  pipes = pipes.filter(p => p.x > -50);
+              }
+              function jump() {
+                  bird.vy = -8;
+              }
+              function restart() {
+                  bird = {x: 50, y: 250, vy: 0};
+                  pipes = [];
+                  score = 0;
+                  gameOver = false;
+              }
+              canvas.addEventListener('click', () => {
+                  if (gameOver) restart();
+                  else jump();
+              });
+              document.addEventListener('keydown', (e) => {
+                  if (e.key === ' ') {
+                      if (gameOver) restart();
+                      else jump();
+                  }
+              });
+              setInterval(() => { update(); draw(); }, 16);
+          </script>
+      </body>
+      </html>
+    dest: "{{ web_game_dir }}/flappy/index.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+  when: flappy_copy_result.rc != 0 or not flappy_dir.stdout
+

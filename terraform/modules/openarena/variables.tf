@@ -45,7 +45,7 @@ variable "cloudflare_zone_name" {
 variable "cloudflare_subdomain" {
   description = "Cloudflare subdomain for the DNS record"
   type        = string
-  default     = "quake"
+  default     = "games"
 }
 
 variable "cloudflare_ttl" {

@@ -1,0 +1,148 @@
+---
+# Deploy Snake game to /snake/ subdirectory
+# Classic snake game
+
+- name: Create Snake game directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}/snake"
+    state: directory
+    mode: "0755"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Download Snake game
+  ansible.builtin.get_url:
+    url: https://github.com/zigurous/unity-snake-tutorial/archive/refs/heads/main.zip
+    dest: /tmp/snake-main.zip
+    mode: "0644"
+  register: game_download
+  ignore_errors: yes
+
+- name: Download Snake game (alternative - simple HTML5 version)
+  ansible.builtin.get_url:
+    url: https://github.com/straker/snake-game/archive/refs/heads/master.zip
+    dest: /tmp/snake-master.zip
+    mode: "0644"
+  register: snake_download_alt
+  when: game_download is failed
+
+- name: Extract Snake game (from main download)
+  ansible.builtin.unarchive:
+    src: /tmp/snake-main.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/unity-snake-tutorial-main
+  when: game_download is succeeded
+
+- name: Extract Snake game (from alternative download)
+  ansible.builtin.unarchive:
+    src: /tmp/snake-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/snake-game-master
+  when: game_download is failed and snake_download_alt is defined and snake_download_alt is succeeded
+
+- name: Find extracted Snake directory
+  ansible.builtin.shell: |
+    find /tmp -maxdepth 1 -type d \( -name "*snake*" -o -name "*Snake*" \) | head -1
+  register: snake_dir
+  changed_when: false
+
+- name: Copy Snake game files to game directory
+  ansible.builtin.shell: |
+    if [ -n "{{ snake_dir.stdout }}" ] && [ -d "{{ snake_dir.stdout }}" ]; then
+      # Look for index.html or main HTML file
+      if [ -f {{ snake_dir.stdout }}/index.html ]; then
+        cp -r {{ snake_dir.stdout }}/* {{ web_game_dir }}/snake/
+      elif [ -f {{ snake_dir.stdout }}/snake.html ]; then
+        cp -r {{ snake_dir.stdout }}/* {{ web_game_dir }}/snake/
+        cp {{ snake_dir.stdout }}/snake.html {{ web_game_dir }}/snake/index.html
+      else
+        cp -r {{ snake_dir.stdout }}/* {{ web_game_dir }}/snake/
+      fi
+      chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/snake/
+      echo "Snake files copied successfully"
+    else
+      echo "Snake directory not found, will create inline game"
+    fi
+  changed_when: true
+  failed_when: false
+  register: snake_copy_result
+
+- name: Create simple Snake game if download failed
+  ansible.builtin.copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Snake Game</title>
+          <style>
+              body { margin: 0; padding: 20px; background: #000; color: #0f0; font-family: monospace; text-align: center; }
+              canvas { border: 2px solid #0f0; background: #000; }
+              h1 { color: #0f0; }
+          </style>
+      </head>
+      <body>
+          <h1>Snake Game</h1>
+          <canvas id="game" width="400" height="400"></canvas>
+          <p>Use arrow keys to play</p>
+          <script>
+              const canvas = document.getElementById('game');
+              const ctx = canvas.getContext('2d');
+              const gridSize = 20;
+              let snake = [{x: 200, y: 200}];
+              let direction = {x: 0, y: 0};
+              let food = {x: 0, y: 0};
+              let score = 0;
+              function randomFood() {
+                  food.x = Math.floor(Math.random() * (canvas.width / gridSize)) * gridSize;
+                  food.y = Math.floor(Math.random() * (canvas.height / gridSize)) * gridSize;
+              }
+              function draw() {
+                  ctx.fillStyle = '#000';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.fillStyle = '#0f0';
+                  snake.forEach(segment => {
+                      ctx.fillRect(segment.x, segment.y, gridSize - 2, gridSize - 2);
+                  });
+                  ctx.fillStyle = '#f00';
+                  ctx.fillRect(food.x, food.y, gridSize - 2, gridSize - 2);
+                  ctx.fillStyle = '#0f0';
+                  ctx.font = '20px monospace';
+                  ctx.fillText('Score: ' + score, 10, 30);
+              }
+              function update() {
+                  const head = {x: snake[0].x + direction.x, y: snake[0].y + direction.y};
+                  if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height ||
+                      snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+                      alert('Game Over! Score: ' + score);
+                      snake = [{x: 200, y: 200}];
+                      direction = {x: 0, y: 0};
+                      score = 0;
+                      randomFood();
+                      return;
+                  }
+                  snake.unshift(head);
+                  if (head.x === food.x && head.y === food.y) {
+                      score++;
+                      randomFood();
+                  } else {
+                      snake.pop();
+                  }
+              }
+              document.addEventListener('keydown', (e) => {
+                  if (e.key === 'ArrowUp' && direction.y === 0) direction = {x: 0, y: -gridSize};
+                  if (e.key === 'ArrowDown' && direction.y === 0) direction = {x: 0, y: gridSize};
+                  if (e.key === 'ArrowLeft' && direction.x === 0) direction = {x: -gridSize, y: 0};
+                  if (e.key === 'ArrowRight' && direction.x === 0) direction = {x: gridSize, y: 0};
+              });
+              randomFood();
+              setInterval(() => { update(); draw(); }, 100);
+          </script>
+      </body>
+      </html>
+    dest: "{{ web_game_dir }}/snake/index.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+

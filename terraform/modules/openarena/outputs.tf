@@ -10,11 +10,11 @@ output "public_ip" {
 }
 
 # Fully Qualified Domain Name (FQDN)
-# The complete domain name for the game server (e.g., quake.alexflux.com)
+# The complete domain name for the game server (e.g., games.alexflux.com)
 # Returns "Use public_ip instead" if Cloudflare is not configured
 output "fqdn" {
   description = "Fully qualified domain name for the game server (or 'Use public_ip instead' if Cloudflare not configured)"
-  value       = var.cloudflare_zone_id != "" && var.cloudflare_zone_name != "" && var.cloudflare_zone_id != "your-zone-id-here" && var.cloudflare_zone_id != "replace_me" && !startswith(var.cloudflare_zone_id, "your-") && !startswith(var.cloudflare_zone_id, "replace") ? try(cloudflare_record.quake[0].hostname, "${var.cloudflare_subdomain}.${var.cloudflare_zone_name}") : "Use public_ip instead"
+  value       = var.cloudflare_zone_id != "" && var.cloudflare_zone_name != "" && var.cloudflare_zone_id != "your-zone-id-here" && var.cloudflare_zone_id != "replace_me" && !startswith(var.cloudflare_zone_id, "your-") && !startswith(var.cloudflare_zone_id, "replace") ? try(cloudflare_record.games[0].hostname, "${var.cloudflare_subdomain}.${var.cloudflare_zone_name}") : "Use public_ip instead"
 }
 
 # SSH user for connecting to the instance

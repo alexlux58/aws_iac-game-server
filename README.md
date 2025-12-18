@@ -1,173 +1,141 @@
-# OpenArena AWS Infrastructure
+# 🎮 OpenArena AWS - Multi-Game Browser Arcade
 
-Enterprise-grade infrastructure for hosting OpenArena (Quake) game servers on AWS with comprehensive security logging and cost monitoring.
+**Deploy a complete browser-based game arcade on AWS with classic games like 2048, PvP Arena, Pac-Man, and Super Mario Bros!**
 
-## 🎮 Features
+[![Terraform](https://img.shields.io/badge/terraform-1.5+-blue.svg)](https://www.terraform.io/)
+[![Ansible](https://img.shields.io/badge/ansible-2.9+-red.svg)](https://www.ansible.com/)
+[![AWS](https://img.shields.io/badge/AWS-EC2-orange.svg)](https://aws.amazon.com/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-- **EC2 Game Server**: Amazon Linux 2, t2.micro (free tier eligible)
-- **Elastic IP**: Static IP address for consistent DNS
-- **Cloudflare DNS**: Custom domain support (e.g., quake.alexflux.com)
-- **Security Logging**: CloudTrail, GuardDuty (optional), VPC Flow Logs (optional)
-- **Cost Monitoring**: Budgets, Anomaly Detection, Billing Alarms
-- **Infrastructure as Code**: Terraform + Ansible
-- **Python 3.8 Auto-Install**: Automatic Python upgrade for Ansible compatibility
-- **CI/CD Ready**: GitHub Actions workflows
+## ✨ Features
 
-## 📋 Prerequisites
+- 🎯 **Multi-Game Arcade** - Beautiful game selection screen with multiple browser games
+- 🌐 **Browser-Based** - All games run directly in your browser, no downloads needed
+- 🚀 **One-Command Deploy** - Full infrastructure and game deployment with `make deploy`
+- 💰 **Cost-Optimized** - ~$11/month with optional features disabled
+- 🔒 **Secure** - SSH restricted, encrypted storage, audit logging
+- 📊 **Monitoring** - Cost budgets, anomaly detection, billing alarms
+- 🎨 **Modern UI** - Responsive game selection interface
 
-- **AWS Account** with appropriate IAM permissions (see [IAM Setup](#-iam-permissions) below)
-- **Terraform** >= 1.5.0 ([Install Guide](https://developer.hashicorp.com/terraform/install))
-- **Ansible** ([Install Guide](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html))
-- **AWS CLI** configured ([Setup Guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html))
-- **Cloudflare Account** (optional, for custom DNS)
-- **Git** (for version control)
+## 🎮 Available Games
 
-## 🔐 IAM Permissions
-
-Your AWS IAM user needs the following managed policies attached:
-
-### Required IAM Policies
-
-1. **Attach via AWS Console** or use the provided script:
-
-```bash
-# Attach the 3 required IAM policies to your terraform user
-./scripts/attach-iam-policy.sh
-
-# This creates and attaches:
-# - OpenArenaTerraformMonitoring (SNS, Budgets, Cost Explorer, CUR)
-# - OpenArenaTerraformSecurity (IAM, KMS, GuardDuty)
-# - OpenArenaTerraformCloudTrail (CloudTrail management)
-```
-
-2. **Existing AWS Managed Policies** (attach via AWS Console):
-   - `AmazonEC2FullAccess`
-   - `AmazonS3FullAccess`
-   - `AmazonVPCFullAccess`
-
-### IAM Policy Files
-
-The custom IAM policies are provided in the project root:
-- `iam-policy-terraform-monitoring.json`
-- `iam-policy-terraform-security.json`
-- `iam-policy-terraform-cloudtrail.json`
-
-See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed IAM setup instructions.
+| Game | Type | Players | Description |
+|------|------|---------|-------------|
+| **2048** | Puzzle | Single | Classic number merging puzzle game |
+| **PvP Arena** | Action | 1-4 | Fast-paced multiplayer arena shooter |
+| **Pac-Man** | Arcade | Single | Classic maze game with ghosts and dots |
+| **Super Mario Bros** | Platformer | Single | HTML5 remake with all 32 original levels |
+| **Snake** | Arcade | Single | Classic snake game - grow longer by eating food |
+| **Tetris** | Puzzle | Single | Legendary puzzle game with falling blocks |
+| **Pong** | Arcade | Single | The original arcade classic |
+| **Flappy Bird** | Arcade | Single | Navigate through pipes in this addictive game |
+| **Space Invaders** | Arcade | Single | Defend Earth from alien invaders |
+| **Breakout** | Arcade | Single | Break all the bricks with your paddle |
+| **Asteroids** | Arcade | Single | Destroy asteroids in space |
+| **Tic-Tac-Toe** | Puzzle | 2 Players | Classic strategy game - get three in a row |
 
 ## 🚀 Quick Start
 
-### 1. Clone and Setup
+### Prerequisites
+
+- **AWS Account** with billing enabled
+- **Terraform** >= 1.5.0 ([Install](https://developer.hashicorp.com/terraform/downloads))
+- **Ansible** >= 2.9 ([Install](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html))
+- **AWS CLI** configured ([Setup](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html))
+- **Git** for cloning the repository
+
+### 1. Clone the Repository
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/yourusername/openarena-aws.git
 cd openarena-aws
 ```
 
-### 2. Configure Environment Variables
+### 2. Configure Environment
 
-**Create .env file (required for deployment scripts):**
-
+**Create `.env` file:**
 ```bash
 cp .env.example .env
 # Edit .env with your values
 ```
 
-**Key variables in .env:**
+**Key variables:**
 ```bash
 AWS_REGION="us-west-2"
-SSH_KEY_NAME="terraform"                    # Your AWS SSH key pair name
-SSH_PRIVATE_KEY_FILE="./terraform.pem"      # Path to your private key
-SSH_ALLOWED_CIDR="23.242.22.13/32"          # Your public IP (use /32 for single IP)
+SSH_KEY_NAME="your-key-name"
+SSH_PRIVATE_KEY_FILE="./terraform.pem"
+SSH_ALLOWED_CIDR="YOUR_IP/32"  # Get with: curl ifconfig.me
 
 # Cloudflare (optional - set to "dummy" if not using)
 CLOUDFLARE_API_TOKEN="your-token-or-dummy"
 ```
 
-**Find your public IP:**
-```bash
-curl ifconfig.me
-# Add /32 to the end: 23.242.22.13/32
-```
-
-### 3. Configure Terraform Variables
-
+**Create `terraform/terraform.tfvars`:**
 ```bash
 cd terraform
 cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars with your values
 ```
 
-**Critical variables in terraform.tfvars:**
+**Critical variables:**
 ```hcl
-# AWS Configuration
 aws_region          = "us-west-2"
-ssh_key_name        = "terraform"
-create_key_pair     = false              # Set to true if key doesn't exist in AWS
-ssh_allowed_cidr    = "23.242.22.13/32"  # Your public IP
+ssh_key_name        = "your-key-name"
+ssh_allowed_cidr    = "YOUR_IP/32"
 
-# S3 Bucket Names (MUST be globally unique)
-# Replace 026600053230 with your AWS Account ID
-# Get it: aws sts get-caller-identity --query Account --output text
-log_bucket_name     = "openarena-audit-logs-026600053230"
-flowlog_bucket_name = "openarena-flowlogs-026600053230"
-cur_bucket_name     = "openarena-cur-026600053230"
+# S3 Bucket Names (MUST be globally unique - include your AWS Account ID)
+log_bucket_name     = "openarena-audit-logs-YOUR_ACCOUNT_ID"
+flowlog_bucket_name = "openarena-flowlogs-YOUR_ACCOUNT_ID"
+cur_bucket_name     = "openarena-cur-YOUR_ACCOUNT_ID"
 
-# Email for cost alerts
-billing_alert_email = "your-email@example.com"  # MUST CONFIRM SNS SUBSCRIPTION!
-
-# Cloudflare (optional - leave empty to skip)
-cloudflare_zone_id   = ""  # Empty = no DNS
-cloudflare_zone_name = ""  # Empty = no DNS
-
-# Feature toggles (save money by disabling optional features)
-enable_cloudtrail      = true   # FREE - keep enabled
-enable_guardduty       = false  # $10/month - disabled to save money
-enable_vpc_flow_logs   = false  # $3/month - disabled to save money
-enable_cloudwatch_logs = false  # $1.50/month - disabled to save money
+# Email for cost alerts (MUST CONFIRM SNS SUBSCRIPTION!)
+billing_alert_email = "your-email@example.com"
 ```
+
+### 3. Set Up IAM Permissions
+
+```bash
+# Attach required IAM policies
+./scripts/attach-iam-policy.sh
+```
+
+This creates and attaches:
+- `OpenArenaTerraformMonitoring` - SNS, Budgets, Cost Explorer, CUR
+- `OpenArenaTerraformSecurity` - IAM, KMS, GuardDuty
+- `OpenArenaTerraformCloudTrail` - CloudTrail management
+
+**Also attach via AWS Console:**
+- `AmazonEC2FullAccess`
+- `AmazonS3FullAccess`
+- `AmazonVPCFullAccess`
 
 ### 4. Deploy
 
-**Recommended: Layered Deploy (step-by-step with confirmations)**
 ```bash
-make layered-deploy
-# OR
-./scripts/layered-deploy.sh
-```
-
-**Alternative: One-Command Deploy**
-```bash
+# One-command deployment
 make deploy
-# OR
-./scripts/deploy.sh
+
+# OR step-by-step with confirmations
+make layered-deploy
 ```
 
-**Dry-Run (validate without deploying)**
-```bash
-make dry-run
-# OR
-./scripts/layered-deploy.sh --dry-run
-```
+**Deployment takes ~8-10 minutes** and creates:
+- EC2 instance (t2.micro)
+- Elastic IP
+- Security groups
+- S3 buckets for logging
+- CloudTrail audit logging
+- Cost monitoring (budgets, alarms)
+- All browser games deployed
 
-### 5. Connect to Your Server
+### 5. Access Your Arcade
 
-After deployment completes, you'll see:
-
-```
-Public IP: 44.226.98.196
-FQDN:      quake.alexflux.com
-Connect:   quake.alexflux.com:27960
-```
-
-**To play OpenArena:**
-
-1. Download OpenArena client from https://openarena.ws/
-2. Install and launch the game
-3. Press `~` to open console
-4. Type: `/connect quake.alexflux.com` (or use the IP address)
-5. Press Enter
-
-**Note**: OpenArena is a native desktop game client, NOT a web browser game. You need to download and install the game client to connect.
+After deployment, visit:
+- **Game Selection:** `http://games.alexflux.com` (or your IP)
+- **2048:** `http://games.alexflux.com/2048/`
+- **PvP Arena:** `http://games.alexflux.com/pvp/`
+- **Pac-Man:** `http://games.alexflux.com/pacman/`
+- **Super Mario Bros:** `http://games.alexflux.com/mario/`
 
 ## 📁 Project Structure
 
@@ -175,180 +143,236 @@ Connect:   quake.alexflux.com:27960
 openarena-aws/
 ├── terraform/                 # Infrastructure as Code
 │   ├── modules/
-│   │   ├── openarena/         # Game server module
-│   │   │   ├── main.tf        # EC2, EIP, Security Groups, Python 3.8 setup
-│   │   │   ├── variables.tf
-│   │   │   └── versions.tf    # Provider declarations (AWS, Cloudflare)
-│   │   └── cost/              # Security & cost monitoring module
-│   │       ├── cloudtrail.tf  # Audit logging
-│   │       ├── guardduty.tf   # Threat detection (optional)
-│   │       ├── vpc_flow_logs.tf
-│   │       ├── budgets.tf     # Cost budgets
-│   │       ├── anomaly_detection.tf
-│   │       └── s3_buckets.tf  # Encrypted storage
+│   │   ├── openarena/         # EC2, EIP, Security Groups
+│   │   └── cost/              # Monitoring, budgets, CloudTrail
 │   ├── main.tf
-│   ├── variables.tf
-│   ├── providers.tf
-│   └── terraform.tfvars       # Your config (gitignored)
+│   └── terraform.tfvars      # Your config (gitignored)
 ├── ansible/                   # Configuration management
 │   ├── playbooks/
 │   │   └── site.yml           # Main playbook
 │   ├── roles/
-│   │   ├── openarena/         # Game server setup
-│   │   │   ├── tasks/main.yml # Install OpenArena, configure systemd
-│   │   │   ├── templates/
-│   │   │   │   ├── openarena.service.j2
-│   │   │   │   └── server.cfg.j2
-│   │   │   └── defaults/main.yml
-│   │   └── cloudwatch_agent/
-│   ├── inventory/hosts.ini    # Generated by deploy script
-│   ├── ansible.cfg
-│   └── files/
-│       └── openarena-0.8.8.zip  # Game server binaries
+│   │   ├── openarena/         # OpenArena game server
+│   │   └── web-game/          # Browser games deployment
+│   │       ├── tasks/
+│   │       │   ├── deploy-2048.yml
+│   │       │   ├── deploy-pvp.yml
+│   │       │   ├── deploy-pacman.yml
+│   │       │   └── deploy-mario.yml
+│   │       └── templates/
+│   │           └── game-selection.html.j2
+│   └── inventory/
+│       └── hosts.ini          # Generated by deploy script
 ├── scripts/                   # Deployment automation
-│   ├── deploy.sh              # One-command full deployment
-│   ├── layered-deploy.sh      # Step-by-step deployment
-│   ├── redeploy.sh            # Tear down and rebuild
-│   ├── destroy.sh             # Remove all infrastructure
-│   ├── attach-iam-policy.sh   # Attach IAM policies
-│   ├── security-scan.sh       # Security scanning
-│   ├── validate-project.sh    # Validation checks
-│   └── snyk-scan.sh           # Snyk vulnerability scan
-├── .env                       # Environment variables (gitignored)
-├── .env.example               # Template for .env
-├── terraform.pem              # SSH private key (gitignored)
-├── terraform.pub              # SSH public key (gitignored)
-├── iam-policy-*.json          # IAM policy definitions
+│   ├── deploy.sh              # Full deployment
+│   ├── layered-deploy.sh      # Step-by-step
+│   └── destroy.sh             # Teardown
 ├── Makefile                   # Convenient commands
 └── README.md                  # This file
 ```
 
 ## 🛠️ Available Commands
 
-All commands can be run via Make or directly:
-
-| Command | Script | Description |
-|---------|--------|-------------|
-| `make deploy` | `scripts/deploy.sh` | Full deployment (one command) |
-| `make layered-deploy` | `scripts/layered-deploy.sh` | Step-by-step deployment with confirmations |
-| `make dry-run` | `scripts/layered-deploy.sh --dry-run` | Validate without deploying |
-| `make redeploy` | `scripts/redeploy.sh` | Tear down and rebuild (with confirmations) |
-| `make redeploy-auto` | `scripts/redeploy.sh --auto-approve` | Tear down and rebuild (auto-approve) |
-| `make destroy` | `scripts/destroy.sh` | Destroy all infrastructure |
-| `make validate` | `scripts/validate-project.sh` | Comprehensive validation |
-| `make security-scan` | `scripts/security-scan.sh` | Security-focused scan |
-| `make snyk-scan` | `scripts/snyk-scan.sh` | Snyk vulnerability scan |
-| `make quick-check` | Built-in | Fast validation (Terraform + Ansible syntax) |
-
-## 🔐 Security Best Practices
-
-### ✅ Implemented Security Features
-
-1. **No Hardcoded Secrets**
-   - All credentials in `.env` (gitignored)
-   - Cloudflare token via environment variable
-   - SSH keys in `.pem` files (gitignored)
-
-2. **Network Security**
-   - SSH access restricted to your IP only (`/32` CIDR)
-   - Security groups properly configured
-   - Public subnet with proper internet gateway routing
-
-3. **Data Encryption**
-   - S3 buckets encrypted at rest (AES-256)
-   - CloudTrail logs encrypted
-   - KMS keys for sensitive data
-
-4. **Audit Logging**
-   - CloudTrail enabled by default (FREE)
-   - VPC Flow Logs optional
-   - All S3 buckets with versioning
-
-5. **Access Control**
-   - Minimal IAM permissions
-   - Separate IAM policies for different services
-   - No wildcard resource permissions
-
-### ⚠️ Security Checklist Before Deployment
-
-- [ ] Update `ssh_allowed_cidr` to your actual public IP
-- [ ] Never commit `.env`, `terraform.tfvars`, or `.pem` files
-- [ ] Use strong SSH key pairs (minimum 2048-bit RSA)
-- [ ] Confirm SNS subscription emails for cost alerts
-- [ ] Review IAM policies before attaching
-- [ ] Enable CloudTrail (FREE - already enabled by default)
-- [ ] Regularly review CloudTrail logs for unauthorized access
-- [ ] Keep Terraform state file secure (consider remote backend)
-
-### 🔒 .gitignore Protection
-
-The following files are automatically gitignored:
-- `*.tfvars` (except `*.tfvars.example`)
-- `*.pem`, `*.key` (SSH keys)
-- `.env`, `.env.local`
-- `.terraform/`, `*.tfstate`
-- `terraform.pub`
-
-**Verify protection:**
-```bash
-git check-ignore terraform.tfvars .env terraform.pem
-# Should show all three files are ignored
-```
+| Command | Description |
+|---------|-------------|
+| `make deploy` | Full deployment (Terraform + Ansible) |
+| `make layered-deploy` | Step-by-step with confirmations |
+| `make dry-run` | Validate without deploying |
+| `make redeploy` | Tear down and rebuild |
+| `make destroy` | Remove all infrastructure |
+| `make validate` | Comprehensive validation |
+| `make security-scan` | Security-focused scan |
+| `make quick-check` | Fast syntax validation |
 
 ## 💰 Cost Breakdown
 
-### Base Cost (with defaults)
+### Monthly Cost (Cost-Optimized Configuration)
 
-| Service | Monthly Cost | Notes |
-|---------|--------------|-------|
-| EC2 t2.micro | ~$8.50 | Free tier eligible (750 hrs/month) |
-| EBS Storage | ~$0.80 | 8 GB GP2 volume |
-| Elastic IP | $0 | Free while attached to running instance |
-| Data Transfer | ~$0.90 | Outbound traffic (first 1 GB free) |
-| CloudTrail | $0 | First trail is FREE |
-| SNS | $0 | First 1,000 emails free |
-| AWS Budgets | $0 | First 2 budgets free |
-| **Total** | **~$11/month** | With optional features disabled |
+| Service | Cost | Notes |
+|---------|------|-------|
+| EC2 t2.micro | $8.50 | Free tier eligible (750 hrs/month) |
+| EBS Storage (8 GB) | $0.80 | GP2 volume |
+| Data Transfer | $0.90 | Outbound traffic |
+| CloudTrail | **FREE** | First trail is free |
+| SNS | **FREE** | First 1,000 emails free |
+| AWS Budgets | **FREE** | First 2 budgets free |
+| **Total** | **~$11/month** | |
 
-### Optional Features (disabled by default to save money)
+### Optional Features (Disabled by Default)
 
-| Service | Monthly Cost | Enable in terraform.tfvars |
-|---------|--------------|----------------------------|
-| GuardDuty | $8-15 | `enable_guardduty = true` |
-| VPC Flow Logs | $2-5 | `enable_vpc_flow_logs = true` |
-| CloudWatch Logs | $0.50-2 | `enable_cloudwatch_logs = true` |
+| Feature | Cost | Enable in terraform.tfvars |
+|---------|------|---------------------------|
+| GuardDuty | $10/month | `enable_guardduty = true` |
+| VPC Flow Logs | $3/month | `enable_vpc_flow_logs = true` |
+| CloudWatch Logs | $1.50/month | `enable_cloudwatch_logs = true` |
 
 **Total with all features: ~$25/month**
 
 ### Cost Optimization Tips
 
-1. **Stop the server when not playing** (saves ~$8.50/month):
+1. **Stop server when not playing:**
    ```bash
-   aws ec2 stop-instances --instance-ids i-xxxxx
-   # Elastic IP remains attached (still FREE)
-   # Start when needed: aws ec2 start-instances --instance-ids i-xxxxx
+   aws ec2 stop-instances --instance-ids $(terraform output -raw instance_id)
+   # Saves ~$4-7/month if stopped 50% of the time
    ```
 
-2. **Use spot instances** (70% cheaper):
-   - Edit `terraform/modules/openarena/main.tf`
-   - Add `instance_market_options` for spot pricing
-   - Risk: Instance may be terminated if spot price increases
+2. **Use free tier:** EC2 t2.micro is free tier eligible (750 hours/month)
 
-3. **Disable optional monitoring** (default):
-   - GuardDuty: disabled (saves $10/month)
-   - VPC Flow Logs: disabled (saves $3/month)
-   - CloudWatch Logs: disabled (saves $1.50/month)
+3. **Disable optional features:** GuardDuty, VPC Flow Logs disabled by default
 
-4. **Set billing alarms**:
-   - Default threshold: $20/month
-   - Adjust in `terraform.tfvars`: `billing_alarm_usd = 20`
+## 🔒 Security Features
 
-## 🧪 Testing & Validation
+- ✅ **SSH Access Restricted** - Only your IP can SSH (`/32` CIDR)
+- ✅ **Encrypted Storage** - All S3 buckets encrypted (AES-256)
+- ✅ **Audit Logging** - CloudTrail enabled (FREE)
+- ✅ **Cost Monitoring** - Budgets, anomaly detection, billing alarms
+- ✅ **No Hardcoded Secrets** - All credentials in `.env` (gitignored)
+- ✅ **Minimal IAM Permissions** - Granular policies per service
 
-### Pre-Deployment Validation
+### Security Checklist
+
+- [ ] Update `ssh_allowed_cidr` to your actual public IP
+- [ ] Never commit `.env`, `terraform.tfvars`, or `.pem` files
+- [ ] Confirm SNS subscription emails for cost alerts
+- [ ] Review IAM policies before attaching
+- [ ] Enable CloudTrail (already enabled by default)
+
+## 🎯 Adding New Games
+
+Want to add more games? It's easy!
+
+### 1. Create Deployment Task
+
+Create `ansible/roles/web-game/tasks/deploy-[gamename].yml`:
+
+```yaml
+---
+# Deploy [Game Name] to /[gamename]/ subdirectory
+
+- name: Create [Game Name] game directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}/[gamename]"
+    state: directory
+    mode: "0755"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Download [Game Name] game
+  ansible.builtin.get_url:
+    url: https://github.com/user/repo/archive/refs/heads/master.zip
+    dest: /tmp/[gamename]-master.zip
+    mode: "0644"
+
+- name: Extract [Game Name] game
+  ansible.builtin.unarchive:
+    src: /tmp/[gamename]-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/[gamename]-master
+
+- name: Copy [Game Name] game files
+  ansible.builtin.shell: |
+    if [ -d /tmp/[gamename]-master ]; then
+      find /tmp/[gamename]-master -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/[gamename]/ \;
+      chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/[gamename]/
+    fi
+  changed_when: true
+```
+
+### 2. Add to Main Deployment
+
+Edit `ansible/roles/web-game/tasks/main.yml`:
+
+```yaml
+- name: Deploy [Game Name] game
+  ansible.builtin.include_tasks: deploy-[gamename].yml
+```
+
+### 3. Add Game Card
+
+Edit `ansible/roles/web-game/templates/game-selection.html.j2`:
+
+```html
+<a href="/[gamename]/" class="game-card">
+    <span class="game-icon">🎮</span>
+    <h2 class="game-title">[Game Name]</h2>
+    <span class="badge singleplayer">Single Player</span>
+    <span class="badge action">Action</span>
+    <p class="game-description">
+        [Game description]
+    </p>
+    <ul class="game-features">
+        <li>Feature 1</li>
+        <li>Feature 2</li>
+    </ul>
+    <span class="play-btn">Play Now →</span>
+</a>
+```
+
+### 4. Add Nginx Route
+
+Edit `ansible/roles/web-game/templates/nginx.conf.j2`:
+
+```nginx
+location /[gamename]/ {
+    alias {{ web_game_dir }}/[gamename]/;
+    try_files $uri $uri/ /[gamename]/index.html;
+}
+```
+
+### 5. Deploy
 
 ```bash
-# Quick syntax check
+make deploy
+```
+
+## 🎮 Suggested Games to Add
+
+Here are some great open-source browser games you can easily add:
+
+| Game | GitHub Repo | Type | Notes |
+|------|-------------|------|-------|
+| **Snake** | [gabrielecirulli/2048](https://github.com/gabrielecirulli/2048) | Puzzle | Classic snake game |
+| **Tetris** | [vladimirgamalyan/tetris](https://github.com/vladimirgamalyan/tetris) | Puzzle | Classic Tetris |
+| **Pong** | [freeCodeCamp/Pong](https://github.com/freeCodeCamp/Pong) | Arcade | Classic Pong |
+| **Flappy Bird** | [nebez/floppybird](https://github.com/nebez/floppybird) | Arcade | Flappy Bird clone |
+| **Space Invaders** | [lmatteis/space-invaders](https://github.com/lmatteis/space-invaders) | Arcade | Classic Space Invaders |
+| **Breakout** | [freeCodeCamp/Breakout](https://github.com/freeCodeCamp/Breakout) | Arcade | Classic Breakout |
+| **Asteroids** | [freeCodeCamp/Asteroids](https://github.com/freeCodeCamp/Asteroids) | Arcade | Classic Asteroids |
+
+**Requirements for games:**
+- ✅ Pure HTML5/CSS/JavaScript (no server-side code)
+- ✅ Available on GitHub as zip download
+- ✅ No build process required (or pre-built)
+- ✅ Works in modern browsers
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how to get started:
+
+### 1. Fork and Clone
+
+```bash
+git clone https://github.com/yourusername/openarena-aws.git
+cd openarena-aws
+```
+
+### 2. Create a Feature Branch
+
+```bash
+git checkout -b feature/add-new-game
+```
+
+### 3. Make Your Changes
+
+- Add new games (see [Adding New Games](#-adding-new-games))
+- Fix bugs
+- Improve documentation
+- Add features
+
+### 4. Test Your Changes
+
+```bash
+# Validate syntax
 make quick-check
 
 # Comprehensive validation
@@ -356,174 +380,74 @@ make validate
 
 # Security scan
 make security-scan
-
-# Dry-run deployment
-make dry-run
 ```
 
-### Post-Deployment Testing
+### 5. Submit a Pull Request
 
-```bash
-# SSH to server
-ssh -i terraform.pem ec2-user@quake.alexflux.com
+- Write a clear description of your changes
+- Reference any related issues
+- Ensure all tests pass
+- Update documentation if needed
 
-# Check OpenArena service status
-sudo systemctl status openarena
+### Contribution Guidelines
 
-# View game server logs
-sudo journalctl -u openarena -f
-
-# Test UDP connectivity
-nc -vzu quake.alexflux.com 27960
-
-# Check DNS resolution
-host quake.alexflux.com
-```
+- **Code Style:** Follow existing Ansible/Terraform conventions
+- **Documentation:** Update README.md for new features
+- **Testing:** Test locally before submitting PR
+- **Commits:** Write clear, descriptive commit messages
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-**1. Terraform Init Fails - Cloudflare Provider Error**
-```
-Error: Could not retrieve provider versions
-```
-**Solution**: Create `.env` file with `CLOUDFLARE_API_TOKEN="dummy"` even if not using Cloudflare.
+**1. Pac-Man/Mario deployment fails**
+- **Solution:** Already fixed! The deployment now auto-detects directory names.
 
-**2. Ansible Fails - Python Version Error**
-```
-SyntaxError: invalid syntax (Python 3.7)
-```
-**Solution**: Already fixed! Python 3.8 is now auto-installed via EC2 user_data.
+**2. Terraform init fails - Cloudflare provider error**
+- **Solution:** Create `.env` with `CLOUDFLARE_API_TOKEN="dummy"` even if not using Cloudflare.
 
-**3. Ansible Fails - DNF Backend Error**
-```
-Could not detect which major revision of dnf is in use
-```
-**Solution**: Already fixed! Now using `command` module instead of `yum` module.
+**3. Ansible fails - Python version error**
+- **Solution:** Already fixed! Python 3.8 is auto-installed via EC2 user_data.
 
-**4. SSH Connection Refused**
-```
-Permission denied (publickey)
-```
-**Solution**:
-- Verify SSH key path in `.env`: `SSH_PRIVATE_KEY_FILE="./terraform.pem"`
-- Check key permissions: `chmod 400 terraform.pem`
-- Ensure `ssh_key_name` in `terraform.tfvars` matches AWS key pair name
+**4. SSH connection refused**
+- **Solution:** 
+  - Verify SSH key path in `.env`
+  - Check key permissions: `chmod 400 terraform.pem`
+  - Ensure `ssh_allowed_cidr` matches your IP
 
-**5. Instance in Private Subnet**
-```
-Instance is not in public subnet
-```
-**Solution**: Already fixed! Terraform now:
-- Filters for public subnets only (`map-public-ip-on-launch = true`)
-- Excludes us-west-2d (t2.micro not supported)
-- Auto-creates public subnet if none exist
-
-**6. IAM Permission Errors**
-```
-not authorized to perform: iam:CreateRole
-```
-**Solution**: Run IAM policy attachment script:
-```bash
-./scripts/attach-iam-policy.sh
-```
-
-**7. OpenArena Service Not Starting**
-```
-ExitCode=203/EXEC
-```
-**Solution**: Already fixed! Now using correct binary path: `/opt/openarena-0.8.8/oa_ded.x86_64`
-
-**8. Can't Access via Web Browser**
-
-OpenArena is NOT a web-based game. You need the OpenArena game client:
-- Download from: https://openarena.ws/
-- Install and run the game
-- Connect via console: `/connect quake.alexflux.com`
+**5. Games not loading**
+- **Solution:**
+  - Check Nginx is running: `sudo systemctl status nginx`
+  - Verify files exist: `ls -la /var/www/html/[gamename]/`
+  - Check Nginx logs: `sudo tail -f /var/log/nginx/error.log`
 
 ### Debug Commands
 
 ```bash
-# Terraform debugging
-export TF_LOG=DEBUG
-terraform apply
-
-# Ansible debugging
-ansible-playbook -vvv playbooks/site.yml
-
 # Check Terraform state
-terraform show
+cd terraform && terraform show
 
-# View resource details
-terraform state list
-terraform state show module.openarena.aws_instance.this
-
-# SSH troubleshooting
-ssh -v -i terraform.pem ec2-user@<ip-address>
-```
-
-## 🔄 Maintenance
-
-### Update OpenArena Server
-
-```bash
 # SSH to server
-ssh -i terraform.pem ec2-user@<ip-address>
+ssh -i terraform.pem ec2-user@$(terraform output -raw public_ip)
 
-# Stop service
-sudo systemctl stop openarena
+# Check game server status
+sudo systemctl status nginx
+sudo systemctl status openarena
 
-# Update game files (manual process)
-# ...
+# View logs
+sudo journalctl -u nginx -f
+sudo journalctl -u openarena -f
 
-# Restart service
-sudo systemctl start openarena
-```
-
-### Update Infrastructure
-
-```bash
-# Pull latest changes
-git pull
-
-# Review changes
-terraform plan
-
-# Apply updates
-terraform apply
-
-# Re-run Ansible for config changes
-cd ansible
-ansible-playbook -i inventory/hosts.ini playbooks/site.yml
-```
-
-### Backup Important Data
-
-```bash
-# Backup Terraform state
-cp terraform/terraform.tfstate terraform/terraform.tfstate.backup
-
-# Backup configuration
-tar -czf openarena-backup.tar.gz terraform.tfvars .env
-
-# Store backups securely (encrypted, off-site)
+# Test game URLs
+curl http://localhost/2048/
+curl http://localhost/pvp/
 ```
 
 ## 📚 Additional Documentation
 
-- **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - Complete deployment guide with cost breakdown
-- **[terraform/SECURITY.md](terraform/SECURITY.md)** - Security best practices and hardening
-- **[TODO.txt](TODO.txt)** - Future enhancements and roadmap
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Run validation: `make validate`
-4. Run security scan: `make security-scan`
-5. Ensure all tests pass
-6. Submit pull request
+- **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - Detailed deployment instructions
+- **[terraform/SECURITY.md](terraform/SECURITY.md)** - Security best practices
+- **[SECURITY_AUDIT.md](SECURITY_AUDIT.md)** - Security audit report
 
 ## 📝 License
 
@@ -531,28 +455,21 @@ This project is for educational and personal use.
 
 ## 🙏 Acknowledgments
 
-- OpenArena Team - Free, open-source Quake III Arena clone
-- ioquake3 - Modern Quake III engine
-- Terraform - Infrastructure as Code
-- Ansible - Configuration management
+- **OpenArena** - Free, open-source Quake III Arena clone
+- **2048** - [gabrielecirulli/2048](https://github.com/gabrielecirulli/2048)
+- **PvP** - [kesiev/pvp](https://github.com/kesiev/pvp)
+- **Pac-Man** - [GerardAlbajar/Pacman-js](https://github.com/GerardAlbajar/Pacman-js)
+- **Super Mario Bros** - [umaim/Mario](https://github.com/umaim/Mario)
+- **Terraform** - Infrastructure as Code
+- **Ansible** - Configuration management
+
+## 📞 Support
+
+- **Issues:** [GitHub Issues](https://github.com/yourusername/openarena-aws/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/yourusername/openarena-aws/discussions)
 
 ---
 
-**Project Status:** ✅ Production Ready
+**Made with ❤️ for the gaming community**
 
-**Last Updated:** 2025-12-17
-
-**Deployed Server:**
-- Public IP: 44.226.98.196
-- DNS: quake.alexflux.com:27960
-- Region: us-west-2
-- Instance ID: i-0ac363289310874d2
-
-**Key Improvements in This Version:**
-- ✅ Python 3.8 auto-install via EC2 user_data (fixes Ansible compatibility)
-- ✅ Fixed public subnet detection and creation
-- ✅ Fixed Ansible yum module DNF backend issues
-- ✅ Fixed OpenArena systemd service binary path
-- ✅ Comprehensive IAM policy setup scripts
-- ✅ Enhanced security with proper gitignore protection
-- ✅ Complete troubleshooting guide
+**Status:** ✅ Production Ready | **Last Updated:** 2025-12-18

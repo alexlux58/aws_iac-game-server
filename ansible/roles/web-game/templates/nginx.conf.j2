@@ -1,0 +1,129 @@
+# Nginx configuration for serving browser-based games
+user {{ nginx_user }};
+worker_processes auto;
+error_log /var/log/nginx/error.log;
+pid /run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile            on;
+    tcp_nopush          on;
+    tcp_nodelay         on;
+    keepalive_timeout   65;
+    types_hash_max_size 4096;
+
+    include             /etc/nginx/mime.types;
+    default_type        application/octet-stream;
+
+    server {
+        listen       {{ web_game_port }} default_server;
+        listen       [::]:{{ web_game_port }} default_server;
+        server_name  _;
+        root         {{ web_game_dir }};
+
+        # Load configuration files for the default server block.
+        include /etc/nginx/default.d/*.conf;
+
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # Game subdirectories
+        location /2048/ {
+            alias {{ web_game_dir }}/2048/;
+            try_files $uri $uri/ /2048/index.html;
+        }
+
+        location /pvp/ {
+            alias {{ web_game_dir }}/pvp/;
+            try_files $uri $uri/ /pvp/index.html;
+        }
+
+        location /pacman/ {
+            alias {{ web_game_dir }}/pacman/;
+            try_files $uri $uri/ /pacman/index.html;
+        }
+
+        location /mario/ {
+            alias {{ web_game_dir }}/mario/;
+            try_files $uri $uri/ /mario/index.html;
+        }
+
+        location /snake/ {
+            alias {{ web_game_dir }}/snake/;
+            try_files $uri $uri/ /snake/index.html;
+        }
+
+        location /tetris/ {
+            alias {{ web_game_dir }}/tetris/;
+            try_files $uri $uri/ /tetris/index.html;
+        }
+
+        location /pong/ {
+            alias {{ web_game_dir }}/pong/;
+            try_files $uri $uri/ /pong/index.html;
+        }
+
+        location /flappy/ {
+            alias {{ web_game_dir }}/flappy/;
+            try_files $uri $uri/ /flappy/index.html;
+        }
+
+        location /spaceinvaders/ {
+            alias {{ web_game_dir }}/spaceinvaders/;
+            try_files $uri $uri/ /spaceinvaders/index.html;
+        }
+
+        location /breakout/ {
+            alias {{ web_game_dir }}/breakout/;
+            try_files $uri $uri/ /breakout/index.html;
+        }
+
+        location /asteroids/ {
+            alias {{ web_game_dir }}/asteroids/;
+            try_files $uri $uri/ /asteroids/index.html;
+        }
+
+        # Tic-Tac-Toe location commented out
+        # location /tictactoe/ {
+        #     alias {{ web_game_dir }}/tictactoe/;
+        #     try_files $uri $uri/ /tictactoe/index.html;
+        # }
+
+        # Serve game files with proper MIME types
+        location ~* \.(wasm|data)$ {
+            add_header Content-Type application/octet-stream;
+            add_header Cross-Origin-Embedder-Policy require-corp;
+            add_header Cross-Origin-Opener-Policy same-origin;
+        }
+
+        location ~* \.(js|json)$ {
+            add_header Content-Type application/javascript;
+            add_header Cache-Control "public, max-age=3600";
+        }
+
+        location ~* \.(png|jpg|jpeg|gif|svg|ico)$ {
+            add_header Cache-Control "public, max-age=3600";
+        }
+
+        # Large file support for game assets
+        client_max_body_size 100M;
+
+        error_page 404 /404.html;
+        location = /404.html {
+        }
+
+        error_page 500 502 503 504 /50x.html;
+        location = /50x.html {
+        }
+    }
+}

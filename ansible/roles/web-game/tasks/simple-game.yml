@@ -1,0 +1,52 @@
+---
+# Deploy a simple browser game - 2048 puzzle game
+# Super simple - just download and extract a zip file, no git, no build needed!
+
+- name: Download 2048 game (simple HTML5 puzzle game)
+  ansible.builtin.get_url:
+    url: https://github.com/gabrielecirulli/2048/archive/refs/heads/master.zip
+    dest: /tmp/2048-master.zip
+    mode: "0644"
+  register: game_download
+
+- name: Extract 2048 game
+  ansible.builtin.unarchive:
+    src: /tmp/2048-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/2048-master
+
+- name: Copy 2048 game files to web directory
+  ansible.builtin.shell: |
+    # Copy all files from extracted directory to web directory
+    if [ -d /tmp/2048-master ]; then
+      # Use find to copy files (handles hidden files and subdirectories)
+      find /tmp/2048-master -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/ \;
+      echo "Files copied successfully"
+    else
+      echo "Error: /tmp/2048-master directory not found"
+      exit 1
+    fi
+  changed_when: true
+
+- name: Ensure index.html exists
+  ansible.builtin.stat:
+    path: "{{ web_game_dir }}/index.html"
+  register: index_check
+
+- name: Create simple redirect if index doesn't exist
+  ansible.builtin.copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <meta http-equiv="refresh" content="0; url=/info.html">
+          <title>Redirecting...</title>
+      </head>
+      <body>Redirecting to <a href="/info.html">game info</a>...</body>
+      </html>
+    dest: "{{ web_game_dir }}/index.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+  when: not index_check.stat.exists

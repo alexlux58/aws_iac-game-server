@@ -1,0 +1,43 @@
+---
+# Deploy PvP game to /pvp/ subdirectory
+# Multiplayer browser arena shooter
+
+- name: Create PvP game directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}/pvp"
+    state: directory
+    mode: "0755"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Download PvP game (multiplayer browser arena shooter)
+  ansible.builtin.get_url:
+    url: https://github.com/kesiev/pvp/archive/refs/heads/master.zip
+    dest: /tmp/pvp-master.zip
+    mode: "0644"
+  register: game_download
+
+- name: Extract PvP game
+  ansible.builtin.unarchive:
+    src: /tmp/pvp-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/pvp-master
+
+- name: Copy PvP game files to game directory
+  ansible.builtin.shell: |
+    # PvP game files are in the 'client' directory
+    if [ -d /tmp/pvp-master/client ]; then
+      find /tmp/pvp-master/client -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/pvp/ \;
+      chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/pvp/
+      echo "PvP client files copied successfully"
+    elif [ -d /tmp/pvp-master ]; then
+      find /tmp/pvp-master -mindepth 1 -maxdepth 1 -not -name ".git" -exec cp -r {} {{ web_game_dir }}/pvp/ \;
+      chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/pvp/
+      echo "PvP files copied successfully"
+    else
+      echo "Error: /tmp/pvp-master directory not found"
+      exit 1
+    fi
+  changed_when: true
+

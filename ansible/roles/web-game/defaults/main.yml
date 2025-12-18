@@ -1,0 +1,5 @@
+---
+# Default variables for web-game role
+web_game_port: 80
+web_game_dir: /var/www/html
+nginx_user: nginx

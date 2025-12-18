@@ -8,7 +8,7 @@ output "public_ip" {
 }
 
 output "fqdn" {
-  description = "Fully qualified domain name - players connect to this address (e.g., quake.alexflux.com)"
+  description = "Fully qualified domain name - players connect to this address (e.g., games.alexflux.com)"
   value       = module.openarena.fqdn
 }
 

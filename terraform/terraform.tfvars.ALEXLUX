@@ -23,7 +23,7 @@ ssh_allowed_cidr   = "23.242.22.13/32"  # Your public IP for security
 # cloudflare_api_token = ""  # Leave empty if using env var
 cloudflare_zone_id     = "your-zone-id-here"
 cloudflare_zone_name   = "yourdomain.com"
-cloudflare_subdomain   = "quake"
+cloudflare_subdomain   = "games"
 cloudflare_ttl         = 300
 
 # ============================================================================

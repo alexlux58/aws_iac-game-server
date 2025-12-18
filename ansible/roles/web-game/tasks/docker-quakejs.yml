@@ -1,0 +1,81 @@
+---
+# Docker-based QuakeJS deployment for browser play
+# This is more reliable than building QuakeJS from source
+
+- name: Check if Docker is installed
+  ansible.builtin.stat:
+    path: /usr/bin/docker
+  register: docker_installed
+
+- name: Install Docker
+  ansible.builtin.command:
+    cmd: |
+      yum install -y docker
+      systemctl start docker
+      systemctl enable docker
+      usermod -aG docker ec2-user
+  when: not docker_installed.stat.exists
+  register: docker_install
+
+- name: Install Docker Compose
+  ansible.builtin.get_url:
+    url: https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64
+    dest: /usr/local/bin/docker-compose
+    mode: "0755"
+  when: not docker_installed.stat.exists or docker_install.changed
+
+- name: Create QuakeJS directory structure
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /opt/quakejs
+    - /opt/quakejs/baseoa
+    - /opt/quakejs/missionpack
+
+- name: Find OpenArena pk3 files on server
+  ansible.builtin.find:
+    paths:
+      - /usr/local/games/openarena/baseoa
+      - /opt/openarena/baseoa
+      - /home/ec2-user/openarena/baseoa
+    patterns: "*.pk3"
+    recurse: no
+  register: found_pk3_files
+  ignore_errors: yes
+
+- name: Create docker-compose.yml for QuakeJS
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/quakejs/docker-compose.yml
+    mode: "0644"
+
+- name: Copy OpenArena pk3 files to QuakeJS directory
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: /opt/quakejs/baseoa/{{ item.path | basename }}
+    remote_src: yes
+    mode: "0644"
+  loop: "{{ found_pk3_files.files | default([]) }}"
+  when: found_pk3_files.files is defined and found_pk3_files.files | length > 0
+  ignore_errors: yes
+  loop_control:
+    label: "{{ item.path | basename }}"
+
+- name: Start QuakeJS container
+  ansible.builtin.command:
+    cmd: docker-compose up -d
+    chdir: /opt/quakejs
+  register: quakejs_start
+
+- name: Wait for QuakeJS to be ready
+  ansible.builtin.uri:
+    url: http://localhost:8080
+    status_code: 200
+  register: quakejs_ready
+  until: quakejs_ready.status == 200
+  retries: 30
+  delay: 2
+  ignore_errors: yes
+

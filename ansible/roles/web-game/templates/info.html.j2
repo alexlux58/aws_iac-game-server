@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PvP Arena - Multiplayer Browser Game</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+        .option {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 10px;
+            transition: transform 0.2s;
+        }
+        .option:hover {
+            transform: scale(1.02);
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .option h2 {
+            margin-top: 0;
+            color: #ffd700;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #ffd700;
+            color: #333;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 10px 10px 0 0;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #ffed4e;
+        }
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .info {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #4CAF50;
+            border-radius: 15px;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+        .status.warning {
+            background: #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 PvP Arena</h1>
+        <p class="subtitle">Multiplayer Browser Shooter</p>
+
+        <div class="option">
+            <h2>Play Now <span class="status">✓ Available</span></h2>
+            <p><strong>Play instantly in your browser - no download required!</strong></p>
+            <div class="info">
+                <p><strong>PvP</strong> is a fast-paced multiplayer arena shooter! Battle with friends in your browser.</p>
+                <p><strong>Features:</strong></p>
+                <ul style="text-align: left; display: inline-block; margin: 15px 0;">
+                    <li>1-4 players multiplayer support</li>
+                    <li>Fast-paced arena combat</li>
+                    <li>Split-screen and networked play</li>
+                    <li>Runs directly in your browser</li>
+                    <li>No downloads or installations needed</li>
+                </ul>
+                <a href="/" class="btn" style="font-size: 1.2em; padding: 15px 40px; margin-top: 20px;">🎮 Play PvP Arena</a>
+                <p style="margin-top: 20px; font-size: 0.9em; opacity: 0.8;">
+                    <strong>Powered by:</strong> <a href="https://github.com/kesiev/pvp" target="_blank" style="color: #ffd700;">PvP</a> - Free and open-source
+                </p>
+            </div>
+        </div>
+
+        <div class="option">
+            <h2>Game Information</h2>
+            <div class="info">
+                <p><strong>Game Type:</strong> Multiplayer Arena Shooter</p>
+                <p><strong>Players:</strong> 1-4 players</p>
+                <p><strong>Style:</strong> Fast-paced competitive combat</p>
+                <p><strong>Platform:</strong> Web Browser (HTML5/JavaScript)</p>
+                <p><strong>Network:</strong> Supports local and networked multiplayer</p>
+                <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.9;">
+                    <strong>Note:</strong> Invite friends to join and battle together!
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

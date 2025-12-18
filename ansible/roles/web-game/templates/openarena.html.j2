@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenArena - Play in Browser</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+        }
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 1000;
+        }
+        #loading h1 {
+            color: #ffd700;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+        #loading p {
+            color: #aaa;
+            margin: 10px 0;
+        }
+        .spinner {
+            border: 4px solid #333;
+            border-top: 4px solid #ffd700;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            z-index: 100;
+            display: none;
+        }
+        #controls h3 {
+            color: #ffd700;
+            margin-bottom: 10px;
+        }
+        #controls ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        #controls li {
+            margin: 5px 0;
+        }
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="loading">
+            <h1>🎮 OpenArena</h1>
+            <div class="spinner"></div>
+            <p>Loading game engine...</p>
+            <p style="font-size: 0.8em; color: #666;">This may take a moment on first load</p>
+        </div>
+        <div id="controls">
+            <h3>Controls</h3>
+            <ul>
+                <li><strong>WASD</strong> - Move</li>
+                <li><strong>Mouse</strong> - Look around</li>
+                <li><strong>Space</strong> - Jump</li>
+                <li><strong>Ctrl</strong> - Crouch</li>
+                <li><strong>Mouse1</strong> - Shoot</li>
+                <li><strong>Mouse2</strong> - Alt fire</li>
+                <li><strong>R</strong> - Reload</li>
+                <li><strong>Tab</strong> - Scoreboard</li>
+                <li><strong>Esc</strong> - Menu</li>
+            </ul>
+        </div>
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script>
+        // QuakeJS configuration
+        const QuakeJS = {
+            // Server connection - connect to the OpenArena server
+            server: "{{ oa_server_address | default('games.alexflux.com:' + (oa_net_port | default(27960) | string)) }}",
+            
+            // Game configuration
+            game: "baseoa",
+            
+            // Canvas element
+            canvas: document.getElementById('canvas'),
+            
+            // Loading indicator
+            loading: document.getElementById('loading'),
+            controls: document.getElementById('controls'),
+            
+            init: function() {
+                // Set canvas size
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+                    if (typeof Module !== 'undefined' && Module.canvas) {
+                        Module.canvas.width = window.innerWidth;
+                        Module.canvas.height = window.innerHeight;
+                    }
+                });
+                
+                // Load QuakeJS
+                this.loadQuakeJS();
+            },
+            
+            loadQuakeJS: function() {
+                // Check if QuakeJS files exist
+                fetch('/ioq3.js')
+                    .then(response => {
+                        if (response.ok) {
+                            this.loadLocalQuakeJS();
+                        } else {
+                            this.loadQuakeJSAlternative();
+                        }
+                    })
+                    .catch(() => {
+                        this.loadQuakeJSAlternative();
+                    });
+            },
+            
+            loadLocalQuakeJS: function() {
+                const script = document.createElement('script');
+                script.src = '/ioq3.js';
+                script.onload = () => {
+                    this.loading.innerHTML = '<h1>🎮 OpenArena</h1><div class="spinner"></div><p>Initializing game engine...</p>';
+                    
+                    // Initialize QuakeJS
+                    if (typeof Module !== 'undefined') {
+                        Module.canvas = this.canvas;
+                        Module.arguments = [
+                            '+set', 'fs_game', 'baseoa',
+                            '+set', 'com_basegame', 'baseoa',
+                            '+set', 'dedicated', '0',
+                            '+connect', this.server
+                        ];
+                        
+                        // Hide loading when game starts
+                        Module.postRun = () => {
+                            setTimeout(() => {
+                                this.loading.style.display = 'none';
+                                this.controls.style.display = 'block';
+                            }, 2000);
+                        };
+                    }
+                };
+                script.onerror = () => {
+                    this.loadQuakeJSAlternative();
+                };
+                document.head.appendChild(script);
+            },
+            
+            loadQuakeJSAlternative: function() {
+                // Alternative: Embed QuakeJS using iframe or provide instructions
+                this.loading.innerHTML = `
+                    <h1>🎮 OpenArena</h1>
+                    <p style="color: #ff6b6b; margin: 20px 0; font-size: 1.1em;">QuakeJS engine files not found locally.</p>
+                    <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 10px; margin: 20px 0; max-width: 600px; text-align: left;">
+                        <p style="margin: 10px 0;"><strong>To enable browser play, you need to:</strong></p>
+                        <ol style="margin: 15px 0; padding-left: 25px;">
+                            <li style="margin: 8px 0;">Build QuakeJS from source using Emscripten</li>
+                            <li style="margin: 8px 0;">Or obtain pre-built QuakeJS WebAssembly files</li>
+                            <li style="margin: 8px 0;">Copy the files (ioq3.js, ioq3.wasm, ioq3.data) to the web server</li>
+                        </ol>
+                        <p style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                            <strong>📖 Setup Guide:</strong> See <code>BROWSER_GAME_SETUP.md</code> on the server for detailed instructions.
+                        </p>
+                    </div>
+                    <div style="margin-top: 25px;">
+                        <p style="margin: 15px 0;"><strong>Quick Alternatives:</strong></p>
+                        <a href="https://openarena.live/" target="_blank" style="display: inline-block; padding: 12px 25px; background: #4CAF50; color: white; text-decoration: none; border-radius: 25px; margin: 5px; font-weight: bold;">
+                            🌐 Try OpenArena Live
+                        </a>
+                        <a href="/info.html" style="display: inline-block; padding: 12px 25px; background: #ffd700; color: #333; text-decoration: none; border-radius: 25px; margin: 5px; font-weight: bold;">
+                            ← Back to Server Info
+                        </a>
+                    </div>
+                `;
+            }
+        };
+        
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            QuakeJS.init();
+        });
+    </script>
+</body>
+</html>
+

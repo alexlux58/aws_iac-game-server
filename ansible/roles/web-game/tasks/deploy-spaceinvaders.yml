@@ -1,0 +1,149 @@
+---
+# Deploy Space Invaders game to /spaceinvaders/ subdirectory
+# Classic Space Invaders arcade game
+
+- name: Create Space Invaders game directory
+  ansible.builtin.file:
+    path: "{{ web_game_dir }}/spaceinvaders"
+    state: directory
+    mode: "0755"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+
+- name: Download Space Invaders game
+  ansible.builtin.get_url:
+    url: https://github.com/lmatteis/space-invaders/archive/refs/heads/master.zip
+    dest: /tmp/spaceinvaders-master.zip
+    mode: "0644"
+  register: game_download
+  ignore_errors: yes
+
+- name: Download Space Invaders game (alternative)
+  ansible.builtin.get_url:
+    url: https://github.com/alex-lux/space-invaders-js/archive/refs/heads/main.zip
+    dest: /tmp/spaceinvaders-alt.zip
+    mode: "0644"
+  register: spaceinvaders_alt
+  when: game_download is failed
+  ignore_errors: yes
+
+- name: Extract Space Invaders game (from main download)
+  ansible.builtin.unarchive:
+    src: /tmp/spaceinvaders-master.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/space-invaders-master
+  when: game_download is succeeded
+
+- name: Extract Space Invaders game (from alternative download)
+  ansible.builtin.unarchive:
+    src: /tmp/spaceinvaders-alt.zip
+    dest: /tmp
+    remote_src: true
+    creates: /tmp/space-invaders-js-main
+  when: game_download is failed and spaceinvaders_alt is defined and spaceinvaders_alt is succeeded
+
+- name: Find extracted Space Invaders directory
+  ansible.builtin.shell: |
+    find /tmp -maxdepth 1 -type d \( -name "*space*" -o -name "*Space*" \) ! -name "spaceinvaders" | head -1
+  register: spaceinvaders_dir
+  changed_when: false
+  failed_when: false
+
+- name: Copy Space Invaders game files to game directory
+  ansible.builtin.shell: |
+    if [ -n "{{ spaceinvaders_dir.stdout }}" ] && [ -d "{{ spaceinvaders_dir.stdout }}" ]; then
+      find {{ spaceinvaders_dir.stdout }} -mindepth 1 -maxdepth 1 -exec cp -r {} {{ web_game_dir }}/spaceinvaders/ \;
+      chown -R {{ nginx_user }}:{{ nginx_user }} {{ web_game_dir }}/spaceinvaders/
+      echo "Space Invaders files copied successfully"
+    else
+      echo "Space Invaders directory not found, will create inline game"
+    fi
+  changed_when: true
+  failed_when: false
+  register: spaceinvaders_copy_result
+
+- name: Create simple Space Invaders game if download failed
+  ansible.builtin.copy:
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Space Invaders</title>
+          <style>
+              body { margin: 0; padding: 20px; background: #000; color: #0f0; font-family: monospace; text-align: center; }
+              canvas { border: 2px solid #0f0; background: #000; }
+              h1 { color: #0f0; }
+          </style>
+      </head>
+      <body>
+          <h1>Space Invaders</h1>
+          <canvas id="game" width="800" height="600"></canvas>
+          <p>Use arrow keys to move, spacebar to shoot</p>
+          <script>
+              const canvas = document.getElementById('game');
+              const ctx = canvas.getContext('2d');
+              let player = {x: 400, y: 550};
+              let bullets = [];
+              let enemies = [];
+              let score = 0;
+              let direction = 1;
+              for (let i = 0; i < 5; i++) {
+                  for (let j = 0; j < 10; j++) {
+                      enemies.push({x: j*70 + 50, y: i*50 + 50});
+                  }
+              }
+              function draw() {
+                  ctx.fillStyle = '#000';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.fillStyle = '#0f0';
+                  ctx.fillRect(player.x - 20, player.y, 40, 20);
+                  ctx.fillStyle = '#f00';
+                  bullets.forEach(b => ctx.fillRect(b.x - 2, b.y, 4, 10));
+                  ctx.fillStyle = '#00f';
+                  enemies.forEach(e => ctx.fillRect(e.x - 15, e.y, 30, 20));
+                  ctx.fillStyle = '#0f0';
+                  ctx.font = '20px monospace';
+                  ctx.fillText('Score: ' + score, 10, 30);
+              }
+              function update() {
+                  enemies.forEach(e => e.x += direction * 0.5);
+                  if (enemies.some(e => e.x > canvas.width - 15 || e.x < 15)) {
+                      direction = -direction;
+                      enemies.forEach(e => e.y += 20);
+                  }
+                  bullets.forEach(b => b.y -= 5);
+                  bullets = bullets.filter(b => b.y > 0);
+                  bullets.forEach(b => {
+                      enemies = enemies.filter(e => {
+                          if (Math.abs(b.x - e.x) < 20 && Math.abs(b.y - e.y) < 20) {
+                              score += 10;
+                              return false;
+                          }
+                          return true;
+                      });
+                  });
+                  if (enemies.length === 0) {
+                      alert('You Win! Score: ' + score);
+                      location.reload();
+                  }
+                  if (enemies.some(e => e.y > player.y)) {
+                      alert('Game Over! Score: ' + score);
+                      location.reload();
+                  }
+              }
+              document.addEventListener('keydown', (e) => {
+                  if (e.key === 'ArrowLeft') player.x = Math.max(20, player.x - 10);
+                  if (e.key === 'ArrowRight') player.x = Math.min(canvas.width - 20, player.x + 10);
+                  if (e.key === ' ') bullets.push({x: player.x, y: player.y});
+              });
+              setInterval(() => { update(); draw(); }, 16);
+          </script>
+      </body>
+      </html>
+    dest: "{{ web_game_dir }}/spaceinvaders/index.html"
+    mode: "0644"
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+  when: spaceinvaders_copy_result.rc != 0 or not spaceinvaders_dir.stdout
+

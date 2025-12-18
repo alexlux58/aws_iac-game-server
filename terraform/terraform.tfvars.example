@@ -32,7 +32,7 @@ ssh_allowed_cidr   = "23.242.22.13/32"  # Your public IP for security
 # IMPORTANT: If you're NOT using Cloudflare DNS, leave these empty:
 cloudflare_zone_id     = ""  # Leave empty to skip Cloudflare DNS
 cloudflare_zone_name   = ""  # Leave empty to skip Cloudflare DNS
-cloudflare_subdomain   = "quake"               # Only used if zone_id/zone_name are set
+cloudflare_subdomain   = "games"               # Only used if zone_id/zone_name are set
 cloudflare_ttl         = 300                   # DNS cache TTL in seconds
 
 # ============================================================================

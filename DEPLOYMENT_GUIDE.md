@@ -128,7 +128,7 @@ SSH_ALLOWED_CIDR="0.0.0.0/0"  # CHANGE THIS to your IP: "1.2.3.4/32"
 CLOUDFLARE_API_TOKEN="your-cloudflare-token"
 CLOUDFLARE_ZONE_ID="your-zone-id"
 CLOUDFLARE_ZONE_NAME="example.com"
-CLOUDFLARE_SUBDOMAIN="quake"
+CLOUDFLARE_SUBDOMAIN="games"
 
 # Cost Monitoring (NEW)
 LOG_BUCKET_NAME="alexflux-audit-logs-123456789012"  # CHANGE 123456789012 to your AWS account ID
@@ -338,7 +338,7 @@ Example: 54.123.45.67:27960
 
 **Option 2: DNS (if Cloudflare configured)**
 ```
-Server: quake.example.com:27960
+Server: games.example.com:27960
 ```
 
 ### Managing the Game Server

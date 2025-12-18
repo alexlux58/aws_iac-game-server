@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlexFlux Arcade - Choose Your Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(0, 245, 255, 0.25), transparent 60%),
+                radial-gradient(circle at bottom, rgba(255, 0, 128, 0.2), transparent 55%),
+                #050816;
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #f9fafb;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        h1 {
+            font-size: 3.5em;
+            margin-bottom: 10px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #e5e7eb;
+            text-shadow:
+                0 0 8px rgba(0, 245, 255, 0.9),
+                0 0 18px rgba(37, 99, 235, 0.9),
+                0 0 32px rgba(8, 47, 73, 0.9);
+        }
+        .subtitle {
+            font-size: 1.3em;
+            opacity: 0.9;
+            color: #9ca3af;
+        }
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        .game-card {
+            background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 45%),
+                        radial-gradient(circle at bottom right, rgba(248, 113, 113, 0.18), transparent 40%),
+                        rgba(15, 23, 42, 0.92);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(18px);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            text-decoration: none;
+            color: #f9fafb;
+            display: block;
+            box-shadow:
+                0 18px 45px rgba(15, 23, 42, 0.9),
+                0 0 0 1px rgba(15, 23, 42, 0.9);
+        }
+        .game-card:hover {
+            transform: translateY(-6px) scale(1.01);
+            border-color: rgba(96, 165, 250, 0.9);
+            box-shadow:
+                0 24px 60px rgba(15, 23, 42, 0.95),
+                0 0 24px rgba(59, 130, 246, 0.75);
+        }
+        .game-icon {
+            font-size: 3.2em;
+            margin-bottom: 15px;
+            display: block;
+            text-shadow:
+                0 0 8px rgba(250, 250, 250, 0.9),
+                0 0 18px rgba(56, 189, 248, 0.9);
+        }
+        .game-title {
+            font-size: 1.6em;
+            margin-bottom: 10px;
+            color: #e5e7eb;
+        }
+        .game-description {
+            font-size: 0.98em;
+            opacity: 0.85;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            color: #d1d5db;
+        }
+        .game-features {
+            list-style: none;
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 15px;
+            color: #9ca3af;
+        }
+        .game-features li {
+            margin: 4px 0;
+            padding-left: 18px;
+            position: relative;
+        }
+        .game-features li:before {
+            content: "◆";
+            position: absolute;
+            left: 2px;
+            color: #38bdf8;
+            font-size: 0.7em;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 11px;
+            border-radius: 999px;
+            font-size: 0.75em;
+            font-weight: 600;
+            margin-top: 10px;
+            margin-right: 6px;
+            border: 1px solid rgba(148, 163, 184, 0.5);
+        }
+        .badge.multiplayer {
+            background: rgba(16, 185, 129, 0.16);
+            color: #6ee7b7;
+            border-color: rgba(16, 185, 129, 0.6);
+        }
+        .badge.singleplayer {
+            background: rgba(59, 130, 246, 0.18);
+            color: #bfdbfe;
+            border-color: rgba(59, 130, 246, 0.7);
+        }
+        .badge.puzzle {
+            background: rgba(234, 179, 8, 0.16);
+            color: #facc15;
+            border-color: rgba(234, 179, 8, 0.7);
+        }
+        .badge.action {
+            background: rgba(248, 113, 113, 0.16);
+            color: #fecaca;
+            border-color: rgba(248, 113, 113, 0.7);
+        }
+        .badge.arcade {
+            background: rgba(244, 114, 182, 0.16);
+            color: #f9a8d4;
+            border-color: rgba(244, 114, 182, 0.7);
+        }
+        .badge.platformer {
+            background: rgba(236, 72, 153, 0.18);
+            color: #f9a8d4;
+            border-color: rgba(236, 72, 153, 0.8);
+        }
+        .play-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 12px;
+            padding: 9px 18px;
+            background: radial-gradient(circle at top, rgba(56, 189, 248, 0.3), rgba(15, 23, 42, 0.95));
+            color: #e5e7eb;
+            text-decoration: none;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.9em;
+            border: 1px solid rgba(96, 165, 250, 0.9);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .play-btn:hover {
+            transform: translateY(-1px) scale(1.03);
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.6);
+        }
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 Game Arcade</h1>
+            <p class="subtitle">Choose your game and start playing!</p>
+        </header>
+
+        <div class="games-grid">
+            <a href="/2048/" class="game-card">
+                <span class="game-icon">🔢</span>
+                <h2 class="game-title">2048</h2>
+                <span class="badge singleplayer">Single Player</span>
+                <span class="badge puzzle">Puzzle</span>
+                <p class="game-description">
+                    The classic number merging puzzle game! Join tiles to reach 2048 and beyond.
+                </p>
+                <ul class="game-features">
+                    <li>Simple controls (arrow keys)</li>
+                    <li>Addictive gameplay</li>
+                    <li>No time limit</li>
+                </ul>
+                <span class="play-btn">Play Now →</span>
+            </a>
+
+            <a href="/pvp/" class="game-card">
+                <span class="game-icon">⚔️</span>
+                <h2 class="game-title">PvP Arena</h2>
+                <span class="badge multiplayer">Multiplayer</span>
+                <span class="badge action">Action</span>
+                <p class="game-description">
+                    Fast-paced multiplayer arena shooter! Battle with friends in your browser.
+                </p>
+                <ul class="game-features">
+                    <li>1-4 players</li>
+                    <li>Split-screen & networked</li>
+                    <li>Fast-paced combat</li>
+                </ul>
+                <span class="play-btn">Play Now →</span>
+            </a>
+
+            <a href="/pacman/" class="game-card">
+                <span class="game-icon">👻</span>
+                <h2 class="game-title">Pac-Man</h2>
+                <span class="badge singleplayer">Single Player</span>
+                <span class="badge action">Arcade</span>
+                <p class="game-description">
+                    The classic arcade maze game! Eat dots, avoid ghosts, and clear the board.
+                </p>
+                <ul class="game-features">
+                    <li>Classic arcade gameplay</li>
+                    <li>Multiple levels</li>
+                    <li>Arrow key controls</li>
+                </ul>
+                <span class="play-btn">Play Now →</span>
+            </a>
+
+            <a href="/mario/" class="game-card">
+                <span class="game-icon">🍄</span>
+                <h2 class="game-title">Super Mario Bros</h2>
+                <span class="badge singleplayer">Single Player</span>
+                <span class="badge platformer">Platformer</span>
+                <p class="game-description">
+                    The legendary platformer! Jump, run, and collect coins through classic levels.
+                </p>
+                <ul class="game-features">
+                    <li>All 32 original levels</li>
+                    <li>Classic Mario gameplay</li>
+                    <li>Arrow keys + spacebar</li>
+                </ul>
+                <span class="play-btn">Play Now →</span>
+            </a>
+
+            <a href="/snake/" class="game-card">
+                <span class="game-icon">🐍</span>
+                <h2 class="game-title">Snake</h2>
+                <span class="badge singleplayer">Single Player</span>
+                <span class="badge arcade">Arcade</span>
+                <p class="game-description">
+                    Classic snake game! Grow longer by eating food, but don't hit the walls or yourself.
+                </p>
+                <ul class="game-features">
+                    <li>Simple arrow key controls</li>
+                    <li>Classic arcade gameplay</li>
+                    <li>Endless fun</li>
+                </ul>
+                <span class="play-btn">Play Now →</span>
+            </a>
+
+            <a href="/tetris/" class="game-card">
+                <span class="game-icon">🧩</span>
+                <h2 class="game-title">Tetris</h2>
+                <span class="badge singleplayer">Single Player</span>
+                <span class="badge puzzle">Puzzle</span>
+                <p class="game-description">
+                    The legendary puzzle game! Arrange falling blocks to clear lines and score points.
+                </p>
+                <ul class="game-features">
+                    <li>Classic Tetris gameplay</li>
+                    <li>Increasing difficulty</li>
+                    <li>Arrow keys to play</li>
+                </ul>
+                <span class="play-btn">Play Now →</span>
+            </a>
+
+            <a href="/pong/" class="game-card">
+                <span class="game-icon">🏓</span>
+                <h2 class="game-title">Pong</h2>
+                <span class="badge singleplayer">Single Player</span>
+                <span class="badge arcade">Arcade</span>
+                <p class="game-description">
+                    The original arcade classic! Bounce the ball back and forth in this retro game.
+                </p>
+                <ul class="game-features">
+                    <li>Classic arcade gameplay</li>
+                    <li>Simple controls</li>
+                    <li>Nostalgic fun</li>
+                </ul>
+                <span class="play-btn">Play Now →</span>
+            </a>
+
+            <a href="/flappy/" class="game-card">
+                <span class="game-icon">🐦</span>
+                <h2 class="game-title">Flappy Bird</h2>
+                <span class="badge singleplayer">Single Player</span>
+                <span class="badge arcade">Arcade</span>
+                <p class="game-description">
+                    Navigate through pipes! Tap to fly and avoid obstacles in this addictive game.
+                </p>
+                <ul class="game-features">
+                    <li>Simple tap/click controls</li>
+                    <li>Challenging gameplay</li>
+                    <li>High score tracking</li>
+                </ul>
+                <span class="play-btn">Play Now →</span>
+            </a>
+
+            <a href="/spaceinvaders/" class="game-card">
+                <span class="game-icon">👾</span>
+                <h2 class="game-title">Space Invaders</h2>
+                <span class="badge singleplayer">Single Player</span>
+                <span class="badge arcade">Arcade</span>
+                <p class="game-description">
+                    Defend Earth! Shoot down waves of alien invaders in this classic arcade shooter.
+                </p>
+                <ul class="game-features">
+                    <li>Classic arcade shooter</li>
+                    <li>Arrow keys + spacebar</li>
+                    <li>Wave-based gameplay</li>
+                </ul>
+                <span class="play-btn">Play Now →</span>
+            </a>
+
+            <a href="/breakout/" class="game-card">
+                <span class="game-icon">🎯</span>
+                <h2 class="game-title">Breakout</h2>
+                <span class="badge singleplayer">Single Player</span>
+                <span class="badge arcade">Arcade</span>
+                <p class="game-description">
+                    Break all the bricks! Use your paddle to bounce the ball and destroy blocks.
+                </p>
+                <ul class="game-features">
+                    <li>Classic brick-breaking</li>
+                    <li>Arrow keys to move paddle</li>
+                    <li>Multiple levels</li>
+                </ul>
+                <span class="play-btn">Play Now →</span>
+            </a>
+
+            <a href="/asteroids/" class="game-card">
+                <span class="game-icon">☄️</span>
+                <h2 class="game-title">Asteroids</h2>
+                <span class="badge singleplayer">Single Player</span>
+                <span class="badge arcade">Arcade</span>
+                <p class="game-description">
+                    Navigate space! Destroy asteroids and avoid collisions in this classic arcade game.
+                </p>
+                <ul class="game-features">
+                    <li>Classic space shooter</li>
+                    <li>Arrow keys + spacebar</li>
+                    <li>Physics-based gameplay</li>
+                </ul>
+                <span class="play-btn">Play Now →</span>
+            </a>
+
+            <!-- Tic-Tac-Toe game commented out due to deployment issues -->
+            <!--
+            <a href="/tictactoe/" class="game-card">
+                <span class="game-icon">❌⭕</span>
+                <h2 class="game-title">Tic-Tac-Toe</h2>
+                <span class="badge singleplayer">Single Player</span>
+                <span class="badge puzzle">Puzzle</span>
+                <p class="game-description">
+                    Classic strategy game! Get three in a row to win in this timeless game.
+                </p>
+                <ul class="game-features">
+                    <li>Simple click to play</li>
+                    <li>Two-player mode</li>
+                    <li>Quick games</li>
+                </ul>
+                <span class="play-btn">Play Now →</span>
+            </a>
+            -->
+        </div>
+
+        <footer>
+            <p>All games run directly in your browser - no downloads required!</p>
+            <p style="margin-top: 10px;">Powered by open-source games</p>
+        </footer>
+    </div>
+</body>
+</html>
+
