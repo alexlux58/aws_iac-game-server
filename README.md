@@ -7,6 +7,10 @@
 [![AWS](https://img.shields.io/badge/AWS-EC2-orange.svg)](https://aws.amazon.com/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+## 🎥 Demo Video
+
+[Watch Demo Video](20260109_042720000_iOS.MP4)
+
 ## ✨ Features
 
 - 🎯 **Multi-Game Arcade** - Beautiful game selection screen with multiple browser games
