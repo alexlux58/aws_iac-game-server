@@ -9,10 +9,8 @@
 
 ## 🎥 Demo Video
 
-<video width="100%" controls>
-  <source src="20260109_042720000_iOS.MP4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+https://github.com/user-attachments/assets/119450a2-1e56-45fe-b7f2-cb0423dfb41e
+
 
 ## ✨ Features
 
